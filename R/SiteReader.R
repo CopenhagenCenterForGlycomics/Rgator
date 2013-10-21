@@ -2,10 +2,6 @@
 # library(devtools)
 # load_all('~/dev/Rgator/')
 
-# Download to a DB with the etag / retrieved date?
-# Store the key somewhere
-# Make a parsing function attribute in the data file
-
 #install_github("httr",username="hirenj")
 library(httr)
 library(plyr)
@@ -48,53 +44,119 @@ syncDatasets <- function() {
 jsonParser <- function(data,keys) {
   currkeys <- unique(sapply(keys,FUN=function(key) { strsplit(key,".",fixed=TRUE)[[1]][1] }))
   keys <- unlist(lapply(keys,FUN=function(key) { sub(".*\\.","",key) }))
-  if (length(currkeys) == 1) {
+  if (length(currkeys) == 1 && length(keys) > length(currkeys) ) {
     return (ldply(data[[ currkeys[1] ]],.fun=function(dat) { parsed <- jsonParser(dat,keys); return(parsed); }))
   } else {
+    if (length(keys) == 1) {
+      if (currkeys[1] == "*") {
+        retval <-lapply( data, FUN=function(dat) { return ((jsonParser(dat,keys))) }  )
+        return (ldply(retval))
+      }
+      return (ldply(data[[keys[1]]]))
+    }
     datlist <- sapply(list(1:(length(keys)-1)),FUN=function(keyidx) {
       key <- keys[keyidx]
       if (is.null(data[[key]]) || length(data[[key]]) == 0) {
-        data[[key]] = NULL
+        data[[key]] = NA
       }
       return (data[[key]])
     })
     key <- keys[length(keys)]
     if (is.null(data[[key]]) || length(data[[key]]) == 0) {
-      data[[key]] = c(NULL)
+      data[[key]] = c(NA)
     }
     datlist <- c( datlist, list(  data[[ keys[length(keys)]  ]] ))
-    print (datlist)
+
     retval <- do.call("cbind",datlist)
     return (retval)
   }
 }
 
 downloadDataset <- function(set) {
-  data <- getGoogleFile(set)
-  assign(paste("gator.raw.",gsub("[[:space:]]|-","_",data$title),sep=""),data, envir = .GlobalEnv)
-  if (!is.null(data$defaults$rKeys)) {
-    frame <- ldply(data$data,.fun=function(dat) { return (jsonParser(dat,data$defaults$rKeys)) });
-    names(frame) <- c("uniprot", data$defaults$rKeys)
+  if (length(grep("^gator:",set)) > 0) {
+    set <- sub("gator:","",set)
+    data <- getGatorSnapshot(set)
   } else {
-    frame <- ldply(data$data,.fun=function(dat) { return (ldply(dat$sites)) })
+    data <- getGoogleFile(set)
   }
-  # sites
 
-  # peptides.sequence,peptides.sites
-  # function(dat) {
-  #  ldply(dat$peptides,.fun=function(pep) {
-  #    if (length(pep$sites) == 0) {
-  #      pep$sites = NULL
-  #    }
-  #    return ( cbind(pep$sequence,pep$sites) )
-  #  })
-  # }
-  currnames <- names(frame)
-  currnames[1] <- 'uniprot'
-  names(frame)<- currnames
+  # assign(paste("gator.raw.",gsub("[[:space:]]|-","_",data$title),sep=""),data, envir = .GlobalEnv)
+
+  # We should check to make sure that the etag for the current data frame in the global namespace
+  # matches with the etag for the current data, so we can find out if we have to redo the parsing of
+  # the data
+
+  if(exists( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )) {
+    frame <- get( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )
+    if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
+      return ()
+    }
+  }
+
+
+  if (!is.null(data$defaults$rKeys)) {
+    all_prots <- names(data$data)
+    frame <- ldply(all_prots,.fun=function(uprot) {
+      frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
+
+      # We should get a data frame out from the jsonParser - attach the uniprot id as
+      # another column into the data frame
+
+      frm$uniprot <- rep(uprot,dim(frm)[1])
+      return(frm)
+    },.progress="text")
+
+    # We need to re-arrange the columns here so that the uniprot column
+    # ends up as the first column for consistency
+
+    wanted_cols <- names(frame)
+    frame <- frame[,c('uniprot',wanted_cols[!wanted_cols == 'uniprot'])]
+    names(frame) <- c('uniprot', data$defaults$rKeys, rep(NA,dim(frame)[2] - (length(data$defaults$rKeys)+1)))
+  } else {
+    # Assume that we're just pulling out sites from the data sets if we're not given a particular
+    # key to iterate over
+    frame <- ldply(data$data,.fun=function(dat) { return (ldply(dat$sites)) },.progress="text")
+    currnames <- names(frame)
+    currnames[1] <- 'uniprot'
+    names(frame)<- currnames
+
+  }
+  attributes(frame)$etag <- data$etag
 
   assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
   frame
+}
+
+
+getGatorSnapshot <- function(fileId) {
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dir.create(basepath,showWarnings=FALSE)
+  filename <- file.path(basepath,paste("gator-",fileId,".json",sep=''))
+  etag <- NULL
+  if (file.exists(filename)) {
+    fileConn <- file(filename,"r")
+    origData <- fromJSON(fileConn,simplifyWithNames=FALSE)
+    close(fileConn)
+    etag <- origData$etag
+  }
+  config <- list()
+  url <- paste('http://localhost:3000/data/history/',fileId,sep='')
+  if (!is.null(etag)) {
+    config$httpheader['If-None-Match'] <- etag
+  }
+  file_request <- GET(url,config=config)
+  if (file_request$status_code == 304) {
+    message("File data has not changed for ",origData$title)
+    return (origData)
+  }
+  message(file_request$status_code)
+  message("Retrieving data from Gator for ",content(file_request)$title)
+  retval <- content(file_request)
+  retval$etag <- format(retval$etag,scientific=FALSE)
+  fileConn<-file(filename)
+  writeLines(toJSON(retval), fileConn)
+  close(fileConn)
+  return (retval)
 }
 
 
@@ -110,17 +172,17 @@ getGoogleFile <- function(fileId) {
     etag <- origData$etag
   }
 
-	# access_info <- doSignin()
-	# gdrive_sig <- sign_oauth2.0(access_info$access_token)
- #  url <- paste('https://www.googleapis.com/drive/v2/files/',fileId,sep='')
- #  if (!is.null(etag)) {
- #    gdrive_sig$httpheader['If-None-Match'] <- etag
- #  }
-	# file_meta <- GET(url,config=gdrive_sig)
- #  if (file_meta$status_code == 304) {
+	access_info <- doSignin()
+	gdrive_sig <- sign_oauth2.0(access_info$access_token)
+  url <- paste('https://www.googleapis.com/drive/v2/files/',fileId,sep='')
+  if (!is.null(etag)) {
+    gdrive_sig$httpheader['If-None-Match'] <- etag
+  }
+	file_meta <- GET(url,config=gdrive_sig)
+  if (file_meta$status_code == 304) {
     message("File data has not changed for ",origData$title)
     return (origData)
-  # }
+  }
   message(file_meta$status_code)
   message("Retrieving data from Google for",content(file_meta)$title)
 	file_data <- GET(content(file_meta)$downloadUrl,gdrive_sig)
