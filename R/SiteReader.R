@@ -42,13 +42,22 @@ syncDatasets <- function() {
 }
 
 jsonParser <- function(data,keys) {
-  currkeys <- unique(sapply(keys,FUN=function(key) { strsplit(key,".",fixed=TRUE)[[1]][1] }))
-  keys <- unlist(lapply(keys,FUN=function(key) { sub(".*\\.","",key) }))
-  if (length(currkeys) == 1 && length(keys) > length(currkeys) ) {
-    return (ldply(data[[ currkeys[1] ]],.fun=function(dat) { parsed <- jsonParser(dat,keys); return(parsed); }))
+  currkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key))>0) { strsplit(key,".",fixed=TRUE)[[1]][1] } }))
+  currkeys <- unlist(currkeys[!sapply(currkeys,is.null)])
+
+  localkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key)) < 1) { return(key) } }))
+  localkeys <- unlist(localkeys[!sapply(localkeys,is.null)])
+
+  keys <- unlist(lapply(keys,FUN=function(key) { sub("[^\\.]+\\.","",key) }))
+  if (length(currkeys) == 1 && currkeys[1] != "*" && (length(keys) > length(currkeys) || keys[1] != currkeys[1]) ) {
+    kidframe <- (ldply(data[[ currkeys[1] ]],.fun=function(dat) { parsed <- jsonParser(dat,keys[!keys %in% localkeys]); return(parsed); }))
+    for (local in localkeys) {
+      kidframe[[local]] <- rep(data[[local]],dim(kidframe)[1])
+    }
+    return (kidframe)
   } else {
     if (length(keys) == 1) {
-      if (currkeys[1] == "*") {
+      if (length(currkeys) > 0 && currkeys[1] == "*") {
         retval <-lapply( data, FUN=function(dat) { return ((jsonParser(dat,keys))) }  )
         return (ldply(retval))
       }
@@ -80,7 +89,7 @@ downloadDataset <- function(set) {
     data <- getGoogleFile(set)
   }
 
-  # assign(paste("gator.raw.",gsub("[[:space:]]|-","_",data$title),sep=""),data, envir = .GlobalEnv)
+  assign(paste("gator.raw.",gsub("[[:space:]]|-","_",data$title),sep=""),data, envir = .GlobalEnv)
 
   # We should check to make sure that the etag for the current data frame in the global namespace
   # matches with the etag for the current data, so we can find out if we have to redo the parsing of
@@ -149,6 +158,11 @@ getGatorSnapshot <- function(fileId) {
     message("File data has not changed for ",origData$title)
     return (origData)
   }
+  if (file_request$status_code > 400 && file_request$status_code < 500) {
+    message("Could not retrieved data from: ",url," got status code ",file_request$status_code)
+    return ()
+  }
+
   message(file_request$status_code)
   message("Retrieving data from Gator for ",content(file_request)$title)
   retval <- content(file_request)
@@ -183,8 +197,11 @@ getGoogleFile <- function(fileId) {
     message("File data has not changed for ",origData$title)
     return (origData)
   }
-  message(file_meta$status_code)
-  message("Retrieving data from Google for",content(file_meta)$title)
+  if (file_meta$status_code > 400 && file_meta$status_code < 500) {
+    message("Could not retrieved data from: ",url," got status code ",file_meta$status_code)
+    return ()
+  }
+  message("Retrieving data from Google for ",content(file_meta)$title)
 	file_data <- GET(content(file_meta)$downloadUrl,gdrive_sig)
   retval <- content(file_data)
   retval$etag <- content(file_meta)$etag
