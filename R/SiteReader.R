@@ -63,7 +63,7 @@ jsonParser <- function(data,keys) {
       }
       return (ldply(data[[keys[1]]]))
     }
-    datlist <- sapply(list(1:(length(keys)-1)),FUN=function(keyidx) {
+    datlist <- sapply(c(1:(length(keys)-1)),FUN=function(keyidx) {
       key <- keys[keyidx]
       if (is.null(data[[key]]) || length(data[[key]]) == 0) {
         data[[key]] = NA
@@ -81,10 +81,32 @@ jsonParser <- function(data,keys) {
   }
 }
 
-downloadDataset <- function(set) {
+downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
   if (length(grep("^gator:",set)) > 0) {
     set <- sub("gator:","",set)
-    data <- getGatorSnapshot(set)
+    if (length(accs) > 0) {
+      if (length(accs) > 50) {
+        accgroups <- split(accs, ceiling(seq_along(accs)/20))
+        accumulated_frame <- NULL
+        for (i in seq_along(accgroups)) {
+          message("Retrieving for ",set," step ",i," out of ",length(accgroups))
+          frame <- downloadDataset(paste("gator:",set,sep=''),accs=accgroups[i],etagcheck=FALSE)
+          if (is.null(accumulated_frame)) {
+            accumulated_frame <- frame
+          } else {
+            accumulated_frame <- rbindlist(list(accumulated_frame,frame))
+          }
+          if ( i == length(accgroups)) {
+            assign(paste("gator.",gsub("[[:space:]]|-","_",set),sep=""),accumulated_frame, envir = .GlobalEnv)
+          }
+        }
+        return (frame)
+      } else {
+        data <- getGatorSnapshotSubset(set,accs)
+      }
+    } else {
+      data <- getGatorSnapshot(set)
+    }
   } else {
     data <- getGoogleFile(set)
   }
@@ -95,7 +117,7 @@ downloadDataset <- function(set) {
   # matches with the etag for the current data, so we can find out if we have to redo the parsing of
   # the data
 
-  if(exists( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )) {
+  if(etagcheck && exists( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )) {
     frame <- get( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )
     if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
       return ()
@@ -136,6 +158,26 @@ downloadDataset <- function(set) {
   frame
 }
 
+
+getGatorSnapshotSubset <- function(fileId,accs) {
+  url <- paste('http://localhost:3001/data/history/',fileId,'?accs=',paste(tolower(unlist(accs)),collapse=','),sep='')
+  config <- list()
+  file_request <- GET(url,config=config)
+  if (file_request$status_code == 304) {
+    message("File data has not changed for ",origData$title)
+    return ()
+  }
+  if (file_request$status_code > 400 && file_request$status_code < 500) {
+    message("Could not retrieved data from: ",url," got status code ",file_request$status_code)
+    return ()
+  }
+
+  message(file_request$status_code)
+  message("Retrieving data from Gator for ",content(file_request)$title)
+  retval <- content(file_request)
+  retval$etag <- format(retval$etag,scientific=FALSE)
+  return (retval)
+}
 
 getGatorSnapshot <- function(fileId) {
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
