@@ -158,6 +158,18 @@ downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
   frame
 }
 
+library(RCurl)
+
+getUniprotSequences <- function(accs) {
+  fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',paste(unlist(accs),collapse="\n"))),multipart=TRUE)
+  contents <- content(fastas)
+  seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
+  seqs <- ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
+  seqs$V1 <- sub(">?sp\\|","",seqs$V1)
+  seqs$V1 <- sub("\\|.*","",seqs$V1)
+  names(seqs) <- c('uniprot','sequence')
+  return (seqs)
+}
 
 getGatorSnapshotSubset <- function(fileId,accs) {
   url <- paste('http://localhost:3001/data/history/',fileId,'?accs=',paste(tolower(unlist(accs)),collapse=','),sep='')
@@ -195,6 +207,8 @@ getGatorSnapshot <- function(fileId) {
   if (!is.null(etag)) {
     config$httpheader['If-None-Match'] <- etag
   }
+  message("Connecting to server to retrieve data for ",fileId)
+
   file_request <- GET(url,config=config)
   if (file_request$status_code == 304) {
     message("File data has not changed for ",origData$title)
