@@ -7,6 +7,10 @@ library(httr)
 library(plyr)
 library(keychain)
 library(RJSONIO)
+library(data.table)
+library(RCurl)
+
+options(stringsAsFactors = FALSE)
 
 current_token <- NULL
 
@@ -158,17 +162,25 @@ downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
   frame
 }
 
-library(RCurl)
-
 getUniprotSequences <- function(accs) {
-  fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',paste(unlist(accs),collapse="\n"))),multipart=TRUE)
+  wanted_accs <- accs
+  if (exists("gator.UniProtData")) {
+    wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
+  } else {
+    assign("gator.UniProtData",data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE), envir = .GlobalEnv)
+  }
+  if (length(wanted_accs) < 1) {
+    return (subset(gator.UniProtData, uniprot %in% accs ))
+  }
+  fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
   contents <- content(fastas)
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
   seqs <- ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
   seqs$V1 <- sub(">?sp\\|","",seqs$V1)
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   names(seqs) <- c('uniprot','sequence')
-  return (seqs)
+  assign('gator.UniProtData', rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
+  return (subset(gator.UniProtData, uniprot %in% accs ))
 }
 
 getGatorSnapshotSubset <- function(fileId,accs) {
