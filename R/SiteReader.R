@@ -172,6 +172,7 @@ getUniprotSequences <- function(accs) {
   if (length(wanted_accs) < 1) {
     return (subset(gator.UniProtData, uniprot %in% accs ))
   }
+  message("Retrieving ",length(wanted_accs)," UniProt IDs")
   fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
   contents <- content(fastas)
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
