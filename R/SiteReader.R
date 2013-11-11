@@ -41,8 +41,8 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 }
 
 syncDatasets <- function() {
-	prefs = getPreferences()
-	lapply(names(prefs$user_datasets),downloadDataset)
+	prefs = getPreferences('0By48KKDu9leCVEFVdS0xOVNSblE')
+	lapply(seq_along(prefs$user_datasets), function(i) { key <- names(prefs$user_datasets)[i]; config <- prefs$user_datasets[[key]]; downloadDataset(key,config) } )
 }
 
 jsonParser <- function(data,keys) {
@@ -85,23 +85,26 @@ jsonParser <- function(data,keys) {
   }
 }
 
-downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
-  if (length(grep("^gator:",set)) > 0) {
-    set <- sub("gator:","",set)
-    if (length(accs) > 0) {
+downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
+  if (length(grep("gatorURL",config[['type']])) > 0) {
+    # This is only the key for the hash in the prefs file
+    # We need to be storing the type with the key
+    # set.type == gatorURL
+    # If there's a trailing slash - we want to do a query
+    if (substr(set, nchar(set), nchar(set)) == '/' || length(accs) > 0) {
       if (length(accs) > 50) {
         accgroups <- split(accs, ceiling(seq_along(accs)/20))
         accumulated_frame <- NULL
         for (i in seq_along(accgroups)) {
           message("Retrieving for ",set," step ",i," out of ",length(accgroups))
-          frame <- downloadDataset(paste("gator:",set,sep=''),accs=accgroups[i],etagcheck=FALSE)
+          frame <- downloadDataset(set,config,accs=accgroups[i],etagcheck=FALSE)
           if (is.null(accumulated_frame)) {
             accumulated_frame <- frame
           } else {
             accumulated_frame <- rbindlist(list(accumulated_frame,frame))
           }
           if ( i == length(accgroups)) {
-            assign(paste("gator.",gsub("[[:space:]]|-","_",set),sep=""),accumulated_frame, envir = .GlobalEnv)
+            assign(paste("gator.",gsub("[[:space:]]|-","_",config[['title']]),sep=""),accumulated_frame, envir = .GlobalEnv)
           }
         }
         return (frame)
@@ -109,10 +112,18 @@ downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
         data <- getGatorSnapshotSubset(set,accs)
       }
     } else {
-      data <- getGatorSnapshot(set)
+
+      # Otherwise we should switch to grabbing a subset
+      data <- getGatorSnapshot(set,gsub("[[:space:]]|-","_",config[['title']]))
     }
   } else {
-    data <- getGoogleFile(set)
+    if (config[['type']] == 'dataset') {
+      # set.type == dataset
+      data <- getGoogleFile(set)
+    } else {
+      message("Don't know how to retrieve ",set)
+      return()
+    }
   }
 
   assign(paste("gator.raw.",gsub("[[:space:]]|-","_",data$title),sep=""),data, envir = .GlobalEnv)
@@ -129,7 +140,7 @@ downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
   }
 
 
-  if (!is.null(data$defaults$rKeys)) {
+  if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
     frame <- ldply(all_prots,.fun=function(uprot) {
       frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
@@ -155,6 +166,9 @@ downloadDataset <- function(set,accs=c(),etagcheck=TRUE) {
     currnames[1] <- 'uniprot'
     names(frame)<- currnames
 
+  }
+  if (!is.null(data$defaults$rNames)) {
+    names(frame) <- c('uniprot',data$defaults$rNames)
   }
   attributes(frame)$etag <- data$etag
 
@@ -184,6 +198,11 @@ getUniprotSequences <- function(accs) {
   return (subset(gator.UniProtData, uniprot %in% accs ))
 }
 
+addSiteColumn <- function(dataframe) {
+  dataset <- ddply(dataframe,.(uniprot),function(df) { vals <- c(1:(dim(df)[1])); df$site <- vals; return (df); })
+  eval.parent(substitute(dataframe<-dataset))
+}
+
 getGatorSnapshotSubset <- function(fileId,accs) {
   url <- paste('http://localhost:3001/data/history/',fileId,'?accs=',paste(tolower(unlist(accs)),collapse=','),sep='')
   config <- list()
@@ -204,7 +223,7 @@ getGatorSnapshotSubset <- function(fileId,accs) {
   return (retval)
 }
 
-getGatorSnapshot <- function(fileId) {
+getGatorSnapshot <- function(gatorURL,fileId) {
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dir.create(basepath,showWarnings=FALSE)
   filename <- file.path(basepath,paste("gator-",fileId,".json",sep=''))
@@ -216,7 +235,8 @@ getGatorSnapshot <- function(fileId) {
     etag <- origData$etag
   }
   config <- list()
-  url <- paste('http://localhost:3000/data/history/',fileId,sep='')
+  message(gatorURL)
+  url <- gsub("/data/latest/", "/data/history/", gatorURL)
   if (!is.null(etag)) {
     config$httpheader['If-None-Match'] <- etag
   }
@@ -235,6 +255,7 @@ getGatorSnapshot <- function(fileId) {
   message(file_request$status_code)
   message("Retrieving data from Gator for ",content(file_request)$title)
   retval <- content(file_request)
+  message("Retrieved data out from downloaded file")
   retval$etag <- format(retval$etag,scientific=FALSE)
   fileConn<-file(filename)
   writeLines(toJSON(retval), fileConn)
