@@ -6,9 +6,9 @@
 library(httr)
 library(plyr)
 library(keychain)
-library(RJSONIO)
 library(data.table)
 library(RCurl)
+library(rjson)
 
 options(stringsAsFactors = FALSE)
 
@@ -230,7 +230,8 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   etag <- NULL
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
-    origData <- fromJSON(fileConn,simplifyWithNames=FALSE)
+    message("Loading cached file")
+    origData <- rjson::fromJSON(,fileConn)
     close(fileConn)
     etag <- origData$etag
   }
@@ -240,7 +241,7 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   if (!is.null(etag)) {
     config$httpheader['If-None-Match'] <- etag
   }
-  message("Connecting to server to retrieve data for ",fileId)
+  message("Connecting to server to check for new data for ",fileId)
 
   file_request <- GET(url,config=config)
   if (file_request$status_code == 304) {
@@ -256,9 +257,15 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   message("Retrieving data from Gator for ",content(file_request)$title)
   retval <- content(file_request)
   message("Retrieved data out from downloaded file")
-  retval$etag <- format(retval$etag,scientific=FALSE)
+  if ("etag" %in% names(retval)) {
+    message("Setting etag retrieved from within response")
+    retval$etag <- format(retval$etag,scientific=FALSE)
+  } else {
+    message("Setting etag retrieved from HTTP headers")
+    retval$etag <- file_request$header[['etag']]
+  }
   fileConn<-file(filename)
-  writeLines(toJSON(retval), fileConn)
+  writeLines(rjson::toJSON(retval), fileConn)
   close(fileConn)
   return (retval)
 }
@@ -271,7 +278,7 @@ getGoogleFile <- function(fileId) {
   etag <- NULL
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
-    origData <- fromJSON(fileConn,simplifyWithNames=FALSE)
+    origData <- rjson::fromJSON(,fileConn)
     close(fileConn)
     etag <- origData$etag
   }
