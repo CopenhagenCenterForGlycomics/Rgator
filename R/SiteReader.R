@@ -86,12 +86,13 @@ jsonParser <- function(data,keys) {
 }
 
 downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
+  message("Downloading ",set)
   if (length(grep("gatorURL",config[['type']])) > 0) {
     # This is only the key for the hash in the prefs file
     # We need to be storing the type with the key
     # set.type == gatorURL
     # If there's a trailing slash - we want to do a query
-    if (substr(set, nchar(set), nchar(set)) == '/' || length(accs) > 0) {
+    if (substr(set, nchar(set), nchar(set)) != '/' || length(accs) > 0) {
       if (length(accs) > 50) {
         accgroups <- split(accs, ceiling(seq_along(accs)/20))
         accumulated_frame <- NULL
@@ -114,7 +115,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     } else {
 
       # Otherwise we should switch to grabbing a subset
-      data <- getGatorSnapshot(set,gsub("[[:space:]]|-","_",config[['title']]))
+      data <- getGatorSnapshot(substr(set, 1, nchar(set)-1),gsub("[[:space:]]|-","_",config[['title']]))
     }
   } else {
     if (config[['type']] == 'dataset') {
@@ -142,7 +143,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
   if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
-    frame <- ldply(all_prots,.fun=function(uprot) {
+    frame <- rbindlist(llply(all_prots,.fun=function(uprot) {
       frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
 
       # We should get a data frame out from the jsonParser - attach the uniprot id as
@@ -150,7 +151,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
       frm$uniprot <- rep(uprot,dim(frm)[1])
       return(frm)
-    },.progress="text")
+    },.progress="text"))
 
     # We need to re-arrange the columns here so that the uniprot column
     # ends up as the first column for consistency
@@ -174,6 +175,40 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
   assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
   frame
+}
+
+testParseJson <- function(filename) {
+  etag <- NULL
+  if (file.exists(filename)) {
+    fileConn <- file(filename,"r")
+    message("Loading cached file")
+    origData <- rjson::fromJSON(,fileConn)
+    close(fileConn)
+    etag <- origData$etag
+  }
+  all_prots <- names(origData$data)
+  frame <- ldply(all_prots,.fun=function(uprot) {
+    frm <- jsonParser(origData$data[[uprot]],origData$defaults$rKeys )
+
+    # We should get a data frame out from the jsonParser - attach the uniprot id as
+    # another column into the data frame
+
+    frm$uniprot <- rep(uprot,dim(frm)[1])
+    return(frm)
+  },.progress="text")
+
+  # We need to re-arrange the columns here so that the uniprot column
+  # ends up as the first column for consistency
+
+  wanted_cols <- names(frame)
+  frame <- frame[,c('uniprot',wanted_cols[!wanted_cols == 'uniprot'])]
+  names(frame) <- c('uniprot', origData$defaults$rKeys, rep(NA,dim(frame)[2] - (length(origData$defaults$rKeys)+1)))
+
+  if (!is.null(origData$defaults$rNames)) {
+    names(frame) <- c('uniprot',origData$defaults$rNames)
+  }
+
+  return (frame)
 }
 
 getUniprotSequences <- function(accs) {
@@ -295,7 +330,7 @@ getGoogleFile <- function(fileId) {
     return (origData)
   }
   if (file_meta$status_code > 400 && file_meta$status_code < 500) {
-    message("Could not retrieved data from: ",url," got status code ",file_meta$status_code)
+    message("Could not retrieve data from: ",url," got status code ",file_meta$status_code)
     return ()
   }
   message("Retrieving data from Google for ",content(file_meta)$title)
