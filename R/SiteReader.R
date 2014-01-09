@@ -65,6 +65,12 @@ jsonParser <- function(data,keys) {
         retval <-lapply( data, FUN=function(dat) { return ((jsonParser(dat,keys))) }  )
         return (ldply(retval))
       }
+      ##
+      ## { "orthologs" : {"TAX1" : ["a","b","c"], "TAX2" : ["a","b"] }}
+      ##
+      if (length(unique(lapply(data[[keys[1]]],length))) > 1) {
+        return (ldply(data[[keys[1]]],.fun=function(list) { return(data.frame(V1=list)) }))
+      }
       return (ldply(data[[keys[1]]]))
     }
     datlist <- sapply(c(1:(length(keys)-1)),FUN=function(keyidx) {
@@ -158,7 +164,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
     wanted_cols <- names(frame)
     frame <- frame[,c('uniprot',wanted_cols[!wanted_cols == 'uniprot'])]
-    names(frame) <- c('uniprot', data$defaults$rKeys, rep(NA,dim(frame)[2] - (length(data$defaults$rKeys)+1)))
+    setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
@@ -187,7 +193,7 @@ testParseJson <- function(filename) {
     etag <- origData$etag
   }
   all_prots <- names(origData$data)
-  frame <- ldply(all_prots,.fun=function(uprot) {
+  frame <- rbindlist(llply(all_prots,.fun=function(uprot) {
     frm <- jsonParser(origData$data[[uprot]],origData$defaults$rKeys )
 
     # We should get a data frame out from the jsonParser - attach the uniprot id as
@@ -195,14 +201,13 @@ testParseJson <- function(filename) {
 
     frm$uniprot <- rep(uprot,dim(frm)[1])
     return(frm)
-  },.progress="text")
-
+  },.progress="text"))
   # We need to re-arrange the columns here so that the uniprot column
   # ends up as the first column for consistency
 
   wanted_cols <- names(frame)
   frame <- frame[,c('uniprot',wanted_cols[!wanted_cols == 'uniprot'])]
-  names(frame) <- c('uniprot', origData$defaults$rKeys, rep(NA,dim(frame)[2] - (length(origData$defaults$rKeys)+1)))
+  setnames(frame, c('uniprot', origData$defaults$rKeys, rep('NA',dim(frame)[2] - (length(origData$defaults$rKeys)+1))))
 
   if (!is.null(origData$defaults$rNames)) {
     names(frame) <- c('uniprot',origData$defaults$rNames)
