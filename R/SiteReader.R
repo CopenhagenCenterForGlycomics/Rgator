@@ -55,6 +55,12 @@ jsonParser <- function(data,keys) {
   keys <- unlist(lapply(keys,FUN=function(key) { sub("[^\\.]+\\.","",key) }))
   if (length(currkeys) == 1 && currkeys[1] != "*" && (length(keys) > length(currkeys) || keys[1] != currkeys[1]) ) {
     kidframe <- (ldply(data[[ currkeys[1] ]],.fun=function(dat) { parsed <- jsonParser(dat,keys[!keys %in% localkeys]); return(parsed); }))
+    ## Sometimes if the sites array was empty, we were not repeating the other fields
+    ## { "alwayspresent" : "ABCD", "sites" : [] } , { "alwayspresent": "ABCDE" , "sites" : [ { "somekey" : "ABC" , "someotherkey" : "DEF"}]}
+    if (dim(kidframe)[2] < length(keys[!keys %in% localkeys])) {
+      kidframe <- data.frame(lapply( keys[!keys %in% localkeys],function(el) { return (c(NA)) }))
+      names(kidframe) <- c(1: length( keys[!keys %in% localkeys] ) )
+    }
     for (local in localkeys) {
       kidframe[[local]] <- rep(data[[local]],dim(kidframe)[1])
     }
