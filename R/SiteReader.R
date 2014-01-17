@@ -105,13 +105,26 @@ jsonParser <- function(data,keys) {
   }
 }
 
+downloadOrthologies <- function() {
+  downloadDataset('http://glycodomain-data.glycocode.com/data/latest/homologene/',list(type='gatorURL',title='orthology.homologene'))
+  downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.treefam.9/',list(type='gatorURL',title='orthology.treefam'))
+  downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.inparanoid.8_1/',list(type='gatorURL',title='orthology.inparanoid'))
+  assign('gator.orthology',rbind(gator.orthology.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
+}
+
+downloadDomains <- function(organism) {
+  downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
+  downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
+}
+
+
 downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   message("Downloading ",set)
   if (length(grep("gatorURL",config[['type']])) > 0) {
     # This is only the key for the hash in the prefs file
     # We need to be storing the type with the key
     # set.type == gatorURL
-    # If there's a trailing slash - we want to do a query
+    # If there's no trailing slash - we want to do a query
     if (substr(set, nchar(set), nchar(set)) != '/' || length(accs) > 0) {
       if (length(accs) > 50) {
         accgroups <- split(accs, ceiling(seq_along(accs)/20))
@@ -248,8 +261,24 @@ getUniprotSequences <- function(accs) {
   seqs$V1 <- sub(">?sp\\|","",seqs$V1)
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   names(seqs) <- c('uniprot','sequence')
+  seqs$uniprot <- tolower(seqs$uniprot)
   assign('gator.UniProtData', rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
-  return (subset(gator.UniProtData, uniprot %in% accs ))
+  return (subset(gator.UniProtData, uniprot %in% tolower(accs) ))
+}
+
+calculateSequenceWindow <- function(dataframe,sitecol,window) {
+  with_seqs <- merge(dataframe,gator.UniProtData,by='uniprot')
+  with_seqs[[sitecol]] <- as.numeric(with_seqs[[sitecol]])
+  with_seqs$endpos <- nchar(with_seqs$sequence) - with_seqs[[sitecol]] - window
+  with_seqs$startpos <- with_seqs[[sitecol]] - window
+  with_seqs <- subset(with_seqs, (endpos > 0 ))
+  with_seqs <- subset(with_seqs, (startpos > 0 ))
+  with_seqs$window <- substr(with_seqs$sequence,with_seqs[[sitecol]]-window,with_seqs[[sitecol]]+window)
+  with_seqs$sequence <- NULL
+  with_seqs$endpos <- NULL
+  with_seqs$startpos <- NULL
+
+  return(with_seqs)
 }
 
 addSiteColumn <- function(dataframe) {
@@ -317,6 +346,9 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   } else {
     message("Setting etag retrieved from HTTP headers")
     retval$etag <- file_request$header[['etag']]
+  }
+  if (! "title" %in% names(retval) && title ) {
+    retval$title <- fileId
   }
   fileConn<-file(filename)
   writeLines(rjson::toJSON(retval), fileConn)
