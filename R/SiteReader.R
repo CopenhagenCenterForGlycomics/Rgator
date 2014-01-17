@@ -62,7 +62,15 @@ jsonParser <- function(data,keys) {
       names(kidframe) <- c(1: length( keys[!keys %in% localkeys] ) )
     }
     for (local in localkeys) {
-      kidframe[[local]] <- rep(data[[local]],dim(kidframe)[1])
+      if (length(data[[local]]) < 2) {
+        kidframe[[local]] <- rep(data[[local]],dim(kidframe)[1])
+      } else {
+        subframe <- data.frame(lapply( data[[local]] , function(val) {
+          rep(val,dim(kidframe)[1])
+        }))
+        names(subframe) <- c(1:length(data[[local]]))
+        kidframe <- cbind(kidframe,subframe)
+      }
     }
     return (kidframe)
   } else {
