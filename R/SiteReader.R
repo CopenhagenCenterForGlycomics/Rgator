@@ -22,7 +22,7 @@ doSignin <- function() {
 	gdrive <- oauth_app("google",getOption("GoogleClientId"),secret=getOption("GoogleClientSecret"))
 
 	if (!is.null(getPassword("GoogleRefreshToken",quiet=TRUE))) {
-		return (oauth2.0_refresh(google,gdrive,getPassword("GoogleRefreshToken")))
+    return (oauth2.0_refresh(google,gdrive,getPassword("GoogleRefreshToken")))
 	}
 	token <- oauth2.0_token(google, gdrive,scope="https://www.googleapis.com/auth/drive.readonly",use_oob = TRUE )
 	setPassword("GoogleRefreshToken",,token$refresh_token)
@@ -41,7 +41,7 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 }
 
 syncDatasets <- function() {
-	prefs = getPreferences('0By48KKDu9leCVEFVdS0xOVNSblE')
+	prefs = getPreferences('0By48KKDu9leCeXN3cEhYZGlwVjQ')
 	lapply(seq_along(prefs$user_datasets), function(i) { key <- names(prefs$user_datasets)[i]; config <- prefs$user_datasets[[key]]; downloadDataset(key,config) } )
 }
 
