@@ -40,10 +40,27 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 	}
 }
 
+
 syncDatasets <- function() {
-	prefs = getPreferences('0By48KKDu9leCeXN3cEhYZGlwVjQ')
-	lapply(seq_along(prefs$user_datasets), function(i) { key <- names(prefs$user_datasets)[i]; config <- prefs$user_datasets[[key]]; downloadDataset(key,config) } )
+  files <- list.files(pattern = "\\.domaintoolsession$")
+  all_prefs <- list()
+  if (length(files) > 0) {
+    all_prefs <- lapply(files,function(filename) {
+      fileConn <- file(filename,"r")
+      data <- rjson::fromJSON(,fileConn)
+      close(fileConn)
+      return (data)
+    })
+  } else {
+     all_prefs = c(getPreferences('0By48KKDu9leCeXN3cEhYZGlwVjQ'))
+  }
+
+  lapply(all_prefs,function(prefs) {
+    lapply(seq_along(prefs$user_datasets), function(i) { key <- names(prefs$user_datasets)[i]; config <- prefs$user_datasets[[key]]; downloadDataset(key,config) } )
+  });
+
 }
+
 
 jsonParser <- function(data,keys) {
   currkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key))>0) { strsplit(key,".",fixed=TRUE)[[1]][1] } }))
@@ -109,7 +126,7 @@ downloadOrthologies <- function() {
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/homologene/',list(type='gatorURL',title='orthology.homologene'))
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.treefam.9/',list(type='gatorURL',title='orthology.treefam'))
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.inparanoid.8_1/',list(type='gatorURL',title='orthology.inparanoid'))
-  assign('gator.orthology',rbind(gator.orthology.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
+  assign('gator.orthology',rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
 }
 
 downloadDomains <- function(organism) {
@@ -165,14 +182,26 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   # We should check to make sure that the etag for the current data frame in the global namespace
   # matches with the etag for the current data, so we can find out if we have to redo the parsing of
   # the data
+  message("Checking etags of pre-parsed data")
+  if(etagcheck) {
+    if (exists( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )) {
+      message("We have data loaded up in the environment")
+      frame <- get( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )
+      if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
+        return ()
+      }
+    } else {
+      frame <- loadParsedJson(data$title)
+      if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
+        message("We have data that has already been parsed")
+        assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
+        return ()
+      }
 
-  if(etagcheck && exists( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )) {
-    frame <- get( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )
-    if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
-      return ()
     }
   }
 
+  message("Preparing to parse data")
 
   if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
@@ -207,7 +236,32 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   attributes(frame)$etag <- data$etag
 
   assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
+
+  writeParsedJson(frame,data$title)
+
   frame
+}
+
+loadParsedJson <- function(title) {
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dir.create(basepath,showWarnings=FALSE)
+  filename <- file.path(basepath,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
+  frame <- data.frame()
+
+  if (file.exists(filename)) {
+    fileConn <- file(filename,"r")
+    message("Loading pre-parsed data")
+    origData <- load(fileConn)
+    close(fileConn)
+  }
+  return(frame)
+}
+
+writeParsedJson <- function(frame,title) {
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dir.create(basepath,showWarnings=FALSE)
+  filename <- file.path(basepath,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
+  save(frame,file=filename)
 }
 
 testParseJson <- function(filename) {
@@ -280,6 +334,44 @@ calculateSequenceWindow <- function(dataframe,sitecol,window) {
 
   return(with_seqs)
 }
+
+calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','V','W','Y','Z')) {
+  aas <- t(data.matrix(apply(as.array(dataframe[[windowcol]]),1,FUN=function(x) { unlist(strsplit(x,''))})))
+  freqs <- apply(aas,2,function(x) { table(x) })
+  sapply(1:dim(aas)[2],function(pos) {
+    pos_freqs <- freqs[[pos]];
+    total <- sum(pos_freqs)
+    sapply(codes,function(aa) {
+      if (! aa %in% names(pos_freqs) ) {
+        return (0)
+      }
+      val <- pos_freqs[names(pos_freqs) == aa]
+      if ( ! is.null(val) ) {
+        return(as.integer(val) / total)
+      }
+    });
+  })
+}
+
+generateLogoPlot <- function(dataframe,windowcol) {
+  uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
+  pwm <- calculatePWM(dataframe,windowcol,names(uniprot_2013_12_freq))
+  return(berrylogo(pwm,uniprot_2013_12_freq))
+}
+
+berrylogo<-function(pwm,backFreq,zero=.0001){
+  pwm[pwm==0]<-zero
+  bval<-plyr::laply(names(backFreq),function(x){log(pwm[x,])-log(backFreq[[x]])})
+  row.names(bval)<-names(backFreq)
+  p<-ggplot2::geom_bar(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
+    ggplot2::geom_abline(ggplot2::aes(slope=0), colour = "grey",size=2)+
+    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),size=8)+
+    ggplot2::theme(legend.position="none")+
+    ggplot2::scale_x_continuous(name="Position",breaks=1:ncol(bval))+
+    ggplot2::scale_y_continuous(name="Log relative frequency")
+  return(p)
+}
+
 
 addSiteColumn <- function(dataframe) {
   dataset <- ddply(dataframe,.(uniprot),function(df) { vals <- c(1:(dim(df)[1])); df$site <- vals; return (df); })
