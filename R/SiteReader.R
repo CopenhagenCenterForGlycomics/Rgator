@@ -299,6 +299,11 @@ testParseJson <- function(filename) {
 
 getUniprotSequences <- function(accs) {
   wanted_accs <- accs
+  cached <- loadParsedJson('UniProtData')
+  if (dim(cached)[1] > 0) {
+    assign("gator.UniProtData",cached, envir = .GlobalEnv)
+  }
+  cached <- NULL
   if (exists("gator.UniProtData")) {
     wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
   } else {
@@ -317,6 +322,7 @@ getUniprotSequences <- function(accs) {
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
   assign('gator.UniProtData', rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
+  writeParsedJson(gator.UniProtData,'UniProtData')
   return (subset(gator.UniProtData, uniprot %in% tolower(accs) ))
 }
 
@@ -363,7 +369,7 @@ berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
   bval<-plyr::laply(names(backFreq),function(x){log(pwm[x,])-log(backFreq[[x]])})
   row.names(bval)<-names(backFreq)
-  p<-ggplot2::geom_bar(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
+  p<-ggplot2::ggplot(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
     ggplot2::geom_abline(ggplot2::aes(slope=0), colour = "grey",size=2)+
     ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),size=8)+
     ggplot2::theme(legend.position="none")+
