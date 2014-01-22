@@ -297,6 +297,20 @@ testParseJson <- function(filename) {
   return (frame)
 }
 
+getUniprotIds <- function(taxonomy) {
+  if (exists(paste("gator.UniProtData.accs.",taxonomy,sep=""))) {
+    return ( get(paste("gator.UniProtData.accs.",taxonomy,sep="")) )
+  }
+  message("Getting ID list")
+  id_request <- GET("http://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
+  message(id_request$status_code)
+  id_text <- content(id_request,as='text')
+  message(id_text)
+  idlist <- unlist(strsplit(id_text,"\n"))
+  assign( paste("gator.UniProtData.accs.",taxonomy,sep=""), idlist, envir = .GlobalEnv )
+  return (idlist)
+}
+
 getUniprotSequences <- function(accs) {
   wanted_accs <- accs
   cached <- loadParsedJson('UniProtData')
@@ -314,10 +328,14 @@ getUniprotSequences <- function(accs) {
   }
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
   fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
+  if (fastas$status_code != 200) {
+    message("Could not retrieve ids")
+    return()
+  }
   contents <- content(fastas)
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
   seqs <- ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
-  seqs$V1 <- sub(">?sp\\|","",seqs$V1)
+  seqs$V1 <- sub(">?[st][pr]\\|","",seqs$V1)
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
@@ -357,6 +375,10 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
       }
     });
   })
+}
+
+uniqueframe <- function(set){
+  return(as.data.frame(unique(as.matrix(set))))
 }
 
 generateLogoPlot <- function(dataframe,windowcol) {
