@@ -9,6 +9,10 @@ library(keychain)
 library(data.table)
 library(RCurl)
 library(rjson)
+library(ggplot2)
+library(VennDiagram)
+library(gridExtra)
+
 
 options(stringsAsFactors = FALSE)
 
@@ -377,6 +381,47 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
   })
 }
 
+getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.75, stem_distance=100  ) {
+  seqdat <- getUniprotSequences(unique(inputsites$uniprot))
+  domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot')
+  domdat$aalength <- nchar(domdat$sequence)
+  domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
+  real <- subset( domdat, ((as.numeric(end) - as.numeric(start)) / aalength < max_dom_proportion ))
+  inside <- subset( subset (  real ,  ( (as.numeric(real[[sitecol]]) >= as.numeric(start)) & (as.numeric(real[[sitecol]]) <= as.numeric(end))  )  ), ! grepl("tmhmm",dom))
+  outside <- subset ( real , ! sitekey %in% inside$sitekey )
+  sitekeys_nterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) < as.numeric(start) )$sitekey)
+  sitekeys_cterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) > as.numeric(end) )$sitekey)
+  between <- subset( outside, sitekey %in% intersect(sitekeys_nterm, sitekeys_cterm ) )
+  stem <- ddply(between,.(sitekey),function(input) {
+    df <- input
+    df$start <- as.numeric(df$start)
+    df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
+    df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
+    filtered <- subset(df,siteend>0)
+    filtered <- filtered[order(filtered$siteend),]
+    if ( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm",filtered$dom[1]) ) {
+      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance)))
+      wanted$siteend <- NULL
+      wanted$startsite <- NULL
+      return (wanted)
+    }
+    filtered <- subset(df,startsite>0)
+    filtered <- filtered[order(filtered$startsite),]
+    if ( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm",filtered$dom[1]) ) {
+      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance)))
+      wanted$siteend <- NULL
+      wanted$startsite <- NULL
+      return (wanted)
+    }
+    return ()
+  })
+  #Stem = Betweeen where closest N-terminal = SIGNALP/TMHMM
+  #ddply between by sitekey if (site - end), sort asc [1] $dom == tmhmmm/signalp return df
+  #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
+  #                         else return empty
+  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem=stem  )  )
+}
+
 uniqueframe <- function(set){
   return(as.data.frame(unique(as.matrix(set))))
 }
@@ -385,6 +430,10 @@ generateLogoPlot <- function(dataframe,windowcol) {
   uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
   pwm <- calculatePWM(dataframe,windowcol,names(uniprot_2013_12_freq))
   return(berrylogo(pwm,uniprot_2013_12_freq))
+}
+
+generateVennDiagram <- function(data=list(),title="Venn Diagram") {
+  return (gTree(children = gList(grid.grabExpr(grid.draw(venn.diagram(data,main=title,NULL)))), cl=c("arrange", "ggplot")))
 }
 
 berrylogo<-function(pwm,backFreq,zero=.0001){
