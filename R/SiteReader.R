@@ -449,6 +449,66 @@ berrylogo<-function(pwm,backFreq,zero=.0001){
   return(p)
 }
 
+getEntrezIds <- function(organism,ids) {
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dbname<-organisms[[as.character(organism)]]
+  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite(dbname,lib=basepath)
+  }
+  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  uprotmap <- sub("\\.db","UNIPROT",dbname)
+  uprots <- unique(intersect(  toupper(ids),mappedRkeys(get(uprotmap))))
+  entrez_ids <- toTable(revmap(get(uprotmap))[  uprots ])
+  names(entrez_ids) <- c('gene_id','uniprot')
+  gene_ids <- entrez_ids$gene_id
+  names(gene_ids) <- entrez_ids$uniprot
+  return (gene_ids)
+}
+
+getGOTerms <- function(organism,uniprots) {
+  if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite("GO.db")
+  }
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  query_ids <- getEntrezIds(organism,uniprots)
+  godb <- get( sub("\\.db","GO",organisms[as.character(organism)] ) )
+  terms <- toTable(godb[query_ids])
+  names(terms) <- c('gene_id','go_id','Evidence','Ontology')
+  terms <- merge( terms, data.frame(gene_id=query_ids,uniprot=tolower(names(query_ids))), by='gene_id')
+  library('GO.db')
+  go_terms <- (select(GO.db, terms$go_id,"TERM"))
+  names(go_terms) <- c('go_id','term')
+  terms <- merge( terms, go_terms, by='go_id')
+  return (terms)
+}
+
+getGOEnrichment <- function(organism,uniprots,universe=c(),ontology='BP',direction='over') {
+  if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite("GO.db")
+  }
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  query_ids <- getEntrezIds(organism,uniprots)
+  if (length(universe) < 1) {
+    universe <- as.list( mappedkeys(get( sub("\\.db","GO",organisms[as.character(organism)] ) )) )
+  } else {
+    universe <- getEntrezIds(organism,universe)
+  }
+  library('GO.db')
+  library('GOstats')
+  params <- new('GOHyperGParams',
+              geneIds=query_ids,
+              universeGeneIds=unlist(universe),
+              ontology=ontology,
+              pvalueCutoff=0.05,
+              conditional=FALSE,
+              testDirection=direction,
+              annotation=as.character(organisms[as.character(organism)])
+             )
+  hgOver <- hyperGTest(params)
+  return (hgOver)
+}
+
 
 addSiteColumn <- function(dataframe) {
   dataset <- ddply(dataframe,.(uniprot),function(df) { vals <- c(1:(dim(df)[1])); df$site <- vals; return (df); })
