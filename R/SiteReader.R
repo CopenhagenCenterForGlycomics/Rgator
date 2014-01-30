@@ -306,9 +306,9 @@ getUniprotIds <- function(taxonomy) {
     return ( get(paste("gator.UniProtData.accs.",taxonomy,sep="")) )
   }
   message("Getting ID list")
-  id_request <- GET("http://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
+  id_request <- httr::GET("http://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
   message(id_request$status_code)
-  id_text <- content(id_request,as='text')
+  id_text <- httr::content(id_request,as='text')
   message(id_text)
   idlist <- unlist(strsplit(id_text,"\n"))
   assign( paste("gator.UniProtData.accs.",taxonomy,sep=""), idlist, envir = .GlobalEnv )
@@ -336,7 +336,7 @@ getUniprotSequences <- function(accs) {
     message("Could not retrieve ids")
     return()
   }
-  contents <- content(fastas)
+  contents <- httr::content(fastas,"text")
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
   seqs <- ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
   seqs$V1 <- sub(">?[st][pr]\\|","",seqs$V1)
@@ -529,8 +529,8 @@ getGatorSnapshotSubset <- function(fileId,accs) {
   }
 
   message(file_request$status_code)
-  message("Retrieving data from Gator for ",content(file_request)$title)
-  retval <- content(file_request)
+  message("Retrieving data from Gator for ",httr::content(file_request)$title)
+  retval <- httr::content(file_request)
   retval$etag <- format(retval$etag,scientific=FALSE)
   return (retval)
 }
@@ -566,8 +566,8 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   }
 
   message(file_request$status_code)
-  message("Retrieving data from Gator for ",content(file_request)$title)
-  retval <- content(file_request)
+  message("Retrieving data from Gator for ",httr::content(file_request)$title)
+  retval <- httr::content(file_request)
   message("Retrieved data out from downloaded file")
   if ("etag" %in% names(retval)) {
     message("Setting etag retrieved from within response")
@@ -613,11 +613,11 @@ getGoogleFile <- function(fileId) {
     message("Could not retrieve data from: ",url," got status code ",file_meta$status_code)
     return ()
   }
-  message("Retrieving data from Google for ",content(file_meta)$title)
-	file_data <- GET(content(file_meta)$downloadUrl,gdrive_sig)
-  retval <- content(file_data)
-  retval$etag <- content(file_meta)$etag
-  retval$title <- content(file_meta)$title
+  message("Retrieving data from Google for ",httr::content(file_meta)$title)
+	file_data <- GET(httr::content(file_meta)$downloadUrl,gdrive_sig)
+  retval <- httr::content(file_data)
+  retval$etag <- httr::content(file_meta)$etag
+  retval$title <- httr::content(file_meta)$title
 
   fileConn<-file(filename)
   writeLines(toJSON(retval), fileConn)
@@ -639,7 +639,7 @@ oauth2.0_refresh <- function(endpoint, app, refresh_token, type = NULL) {
       refresh_token = refresh_token
     )
   )
-  content_out <- content(req, type = type)
+  content_out <- httr::content(req, type = type)
   content_out <- c(
     content_out,
     refresh_token
