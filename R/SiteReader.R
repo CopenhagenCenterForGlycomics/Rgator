@@ -388,38 +388,98 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
   real <- subset( domdat, ((as.numeric(end) - as.numeric(start)) / aalength < max_dom_proportion ))
   inside <- subset( subset (  real ,  ( (as.numeric(real[[sitecol]]) >= as.numeric(start)) & (as.numeric(real[[sitecol]]) <= as.numeric(end))  )  ), ! grepl("tmhmm",dom))
-  outside <- subset ( real , ! sitekey %in% inside$sitekey )
+  outside <- subset ( real , ! sitekey %in% inside$sitekey & dom != 'tmhmm-outside' & dom != 'tmhmm-inside' )
   sitekeys_nterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) < as.numeric(start) )$sitekey)
   sitekeys_cterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) > as.numeric(end) )$sitekey)
   between <- subset( outside, sitekey %in% intersect(sitekeys_nterm, sitekeys_cterm ) )
-  stem <- ddply(between,.(sitekey),function(input) {
+
+  typeii <- unique(ddply(between,.(sitekey),function(input) {
+    df <- unique(subset(input,select=c('dom','start','end','sitekey')))
+    signals <- subset(df, dom == 'SIGNALP')
+    tms <- subset(df, dom == "tmhmm-TMhelix")
+    if (dim(signals)[1] < 1) {
+      if (dim(tms)[1] == 1) {
+        return (input)
+      }
+      return ()
+    }
+    signal_start <- signals$start[1]
+    signal_end <- signals$end[1]
+    tms <- subset(df, dom == "tmhmm-TMhelix" & as.numeric(start) < as.numeric(signal_end) )
+    if (dim(tms)[1] > 0) {
+      return (input)
+    }
+    return ()
+  })$uniprot)
+
+  stem_typeii <- ddply(between,.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
     df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
     df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
+
+    # All the N-terminal domains, our site is C-terminal of the domain
     filtered <- subset(df,siteend>0)
     filtered <- filtered[order(filtered$siteend),]
-    if ( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm",filtered$dom[1]) ) {
-      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance)))
+    # We have a SIGNALP or TMHELIX -- something...
+    # This is a type II transmembrane or it is secreted
+    if (( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm-TMhelix",filtered$dom[1]) ) & (filtered$uniprot[1] %in% typeii )) {
+      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
       wanted$siteend <- NULL
       wanted$startsite <- NULL
       return (wanted)
     }
+  })
+
+  signalp_stem <- ddply(between,.(sitekey),function(input) {
+    df <- input
+    df$start <- as.numeric(df$start)
+    df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
+    df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
+
+    # All the N-terminal domains, our site is C-terminal of the domain
+    filtered <- subset(df,siteend>0)
+    filtered <- filtered[order(filtered$siteend),]
+    # We have a SIGNALP -- something...
+    # If we've got a signalp then it is secreted
+
+
+    if (( (filtered$dom[1] == "SIGNALP") ) & (! filtered$uniprot[1] %in% typeii )) {
+      # Anything with a transmembrane helix is not secreted
+      wanted <- subset(df, ((siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
+      wanted$siteend <- NULL
+      wanted$startsite <- NULL
+      return (wanted)
+    }
+  })
+
+  stem_typei <- ddply(between,.(sitekey),function(input) {
+    df <- input
+    df$start <- as.numeric(df$start)
+    df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
+    df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
+
+    # All the C-terminal domains, our site is N-terminal of the domain
+    # This is a type I transmembrane
     filtered <- subset(df,startsite>0)
     filtered <- filtered[order(filtered$startsite),]
-    if ( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm",filtered$dom[1]) ) {
-      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance)))
+    # We have a something -- TMHELIX
+    if ( grepl("tmhmm-TMhelix",filtered$dom[1]) ) {
+      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance & startsite <= filtered$startsite[1] ) | (siteend > 0 & siteend <= stem_distance)))
       wanted$siteend <- NULL
       wanted$startsite <- NULL
       return (wanted)
     }
     return ()
   })
+
+  interdomain <- subset(between, ! sitekey %in% stem_typei$sitekey & ! sitekey %in% stem_typeii$sitekey & ! sitekey %in% signalp_stem$sitekey )
+  norc <- subset(outside, ! sitekey %in% between$sitekey )
   #Stem = Betweeen where closest N-terminal = SIGNALP/TMHMM
   #ddply between by sitekey if (site - end), sort asc [1] $dom == tmhmmm/signalp return df
   #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
   #                         else return empty
-  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem=stem  )  )
+  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc  )  )
 }
 
 uniqueframe <- function(set){
@@ -433,7 +493,7 @@ generateLogoPlot <- function(dataframe,windowcol) {
 }
 
 generateVennDiagram <- function(data=list(),title="Venn Diagram") {
-  return (gTree(children = gList(grid.grabExpr(grid.draw(venn.diagram(data,main=title,NULL)))), cl=c("arrange", "ggplot")))
+  return (gTree(children = gList(grid.grabExpr(grid.draw(venn.diagram(data,filename=NULL,main=title)))), cl=c("arrange", "ggplot")))
 }
 
 berrylogo<-function(pwm,backFreq,zero=.0001){
@@ -466,6 +526,20 @@ getEntrezIds <- function(organism,ids) {
   return (gene_ids)
 }
 
+convertEntrezIds <- function(organism,ids) {
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dbname<-organisms[[as.character(organism)]]
+  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite(dbname,lib=basepath)
+  }
+  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  retdata <- select(get(dbname), keys=as.character(ids), cols=c('UNIPROT', 'SYMBOL', 'ENTREZID'), keytype="ENTREZID")
+  names(retdata) <- c('geneid','uniprot','genename')
+  retdata
+}
+
+
 getGOTerms <- function(organism,uniprots) {
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
@@ -483,12 +557,20 @@ getGOTerms <- function(organism,uniprots) {
   return (terms)
 }
 
-getGOEnrichment <- function(organism,uniprots,universe=c(),ontology='BP',direction='over') {
+getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over') {
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
   }
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
-  query_ids <- getEntrezIds(organism,uniprots)
+  dbname<-organisms[[as.character(organism)]]
+  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite(dbname,lib=basepath)
+  }
+  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  if (length(query_ids) < 1 & length(uniprots) > 0) {
+    query_ids <- getEntrezIds(organism,uniprots)
+  }
   if (length(universe) < 1) {
     universe <- as.list( mappedkeys(get( sub("\\.db","GO",organisms[as.character(organism)] ) )) )
   } else {
