@@ -181,8 +181,6 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     }
   }
 
-  assign(paste("gator.raw.",gsub("[[:space:]]|-","_",data$title),sep=""),data, envir = .GlobalEnv)
-
   # We should check to make sure that the etag for the current data frame in the global namespace
   # matches with the etag for the current data, so we can find out if we have to redo the parsing of
   # the data
@@ -254,7 +252,6 @@ loadParsedJson <- function(title) {
 
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
-    message("Loading pre-parsed data")
     origData <- load(fileConn)
     close(fileConn)
   }
@@ -315,7 +312,23 @@ getUniprotIds <- function(taxonomy) {
   return (idlist)
 }
 
-getUniprotSequences <- function(accs) {
+getUniprotSequences <- function(accs,wait=0) {
+  if (length(accs) > 200) {
+    accgroups <- split(accs, ceiling(seq_along(accs)/200))
+    accumulated_frame <- NULL
+    pb <- txtProgressBar(min=0, max=length(accgroups),initial=0)
+    for (i in seq_along(accgroups)) {
+      frame <- suppressMessages(getUniprotSequences(as.vector(unlist(accgroups[i])),wait=5))
+      if (is.null(accumulated_frame)) {
+        accumulated_frame <- frame
+      } else {
+        accumulated_frame <- rbindlist(list(accumulated_frame,frame))
+      }
+      setTxtProgressBar(pb,i)
+    }
+    close(pb)
+    return (unique(accumulated_frame))
+  }
   wanted_accs <- accs
   cached <- loadParsedJson('UniProtData')
   if (dim(cached)[1] > 0) {
@@ -341,11 +354,16 @@ getUniprotSequences <- function(accs) {
   seqs <- ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
   seqs$V1 <- sub(">?[st][pr]\\|","",seqs$V1)
   seqs$V1 <- sub("\\|.*","",seqs$V1)
+  if (length(names(seqs)) < 2) {
+    message("Could not retrieve sequences")
+    return()
+  }
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
   assign('gator.UniProtData', rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
   writeParsedJson(gator.UniProtData,'UniProtData')
-  return (subset(gator.UniProtData, uniprot %in% tolower(accs) ))
+  Sys.sleep(wait)
+  return (unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
 }
 
 calculateSequenceWindow <- function(dataframe,sitecol,window) {
@@ -386,6 +404,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
   domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot')
   domdat$aalength <- nchar(domdat$sequence)
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
+  domdat$sequence <- NULL
   real <- subset( domdat, ((as.numeric(end) - as.numeric(start)) / aalength < max_dom_proportion ))
   inside <- subset( subset (  real ,  ( (as.numeric(real[[sitecol]]) >= as.numeric(start)) & (as.numeric(real[[sitecol]]) <= as.numeric(end))  )  ), ! grepl("tmhmm",dom))
   outside <- subset ( real , ! sitekey %in% inside$sitekey & dom != 'tmhmm-outside' & dom != 'tmhmm-inside' )
@@ -406,7 +425,9 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
     signal_start <- signals$start[1]
     signal_end <- signals$end[1]
     tms <- subset(df, dom == "tmhmm-TMhelix" & as.numeric(start) < as.numeric(signal_end) )
-    if (dim(tms)[1] > 0) {
+    other_tms <- subset(df, dom == "tmhmm-TMhelix" & as.numeric(start) > as.numeric(signal_end) )
+
+    if (dim(tms)[1] > 0 & dim(other_tms)[1] == 0) {
       return (input)
     }
     return ()
@@ -438,13 +459,13 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
     df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
 
     # All the N-terminal domains, our site is C-terminal of the domain
-    filtered <- subset(df,siteend>0)
+    filtered <- subset(subset(df,siteend>0),dom != 'tmhmm-TMhelix')
     filtered <- filtered[order(filtered$siteend),]
     # We have a SIGNALP -- something...
     # If we've got a signalp then it is secreted
 
 
-    if (( (filtered$dom[1] == "SIGNALP") ) & (! filtered$uniprot[1] %in% typeii )) {
+    if ( dim(filtered)[1] > 0 & ( (filtered$dom[1] == "SIGNALP") ) & (! filtered$uniprot[1] %in% typeii )) {
       # Anything with a transmembrane helix is not secreted
       wanted <- subset(df, ((siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
       wanted$siteend <- NULL
@@ -479,7 +500,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
   #ddply between by sitekey if (site - end), sort asc [1] $dom == tmhmmm/signalp return df
   #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
   #                         else return empty
-  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc  )  )
+  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem=rbind(stem_typei,stem_typeii,signalp_stem), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc  )  )
 }
 
 uniqueframe <- function(set){
