@@ -521,11 +521,13 @@ berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
   bval<-plyr::laply(names(backFreq),function(x){log(pwm[x,])-log(backFreq[[x]])})
   row.names(bval)<-names(backFreq)
+  window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
+  dimnames(bval)[[2]]<- c((-1*window_size):window_size)
   p<-ggplot2::ggplot(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
     ggplot2::geom_abline(ggplot2::aes(slope=0), colour = "grey",size=2)+
     ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),size=8)+
     ggplot2::theme(legend.position="none")+
-    ggplot2::scale_x_continuous(name="Position",breaks=1:ncol(bval))+
+    ggplot2::scale_x_continuous(name="Position",breaks=(-1*window_size):window_size)+
     ggplot2::scale_y_continuous(name="Log relative frequency")
   return(p)
 }
