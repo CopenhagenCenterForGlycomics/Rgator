@@ -304,9 +304,7 @@ getUniprotIds <- function(taxonomy) {
   }
   message("Getting ID list")
   id_request <- httr::GET("http://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
-  message(id_request$status_code)
   id_text <- httr::content(id_request,as='text')
-  message(id_text)
   idlist <- unlist(strsplit(id_text,"\n"))
   assign( paste("gator.UniProtData.accs.",taxonomy,sep=""), idlist, envir = .GlobalEnv )
   return (idlist)
@@ -347,7 +345,7 @@ getUniprotSequences <- function(accs,wait=0) {
   fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
   if (fastas$status_code != 200) {
     message("Could not retrieve ids")
-    return()
+    return(unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
   }
   contents <- httr::content(fastas,"text")
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
@@ -356,7 +354,8 @@ getUniprotSequences <- function(accs,wait=0) {
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   if (length(names(seqs)) < 2) {
     message("Could not retrieve sequences")
-    return()
+    message(accs)
+    return (unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
   }
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
@@ -399,9 +398,10 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
   })
 }
 
-getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.75, stem_distance=100  ) {
+getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
+  message("Retrieving Uniprot sequences")
   seqdat <- getUniprotSequences(unique(inputsites$uniprot))
-  domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot')
+  domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot',allow.cartesian=TRUE)
   domdat$aalength <- nchar(domdat$sequence)
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
   domdat$sequence <- NULL
@@ -411,7 +411,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
   sitekeys_nterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) < as.numeric(start) )$sitekey)
   sitekeys_cterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) > as.numeric(end) )$sitekey)
   between <- subset( outside, sitekey %in% intersect(sitekeys_nterm, sitekeys_cterm ) )
-
+  message("Identifying type II proteins")
   typeii <- unique(ddply(between,.(sitekey),function(input) {
     df <- unique(subset(input,select=c('dom','start','end','sitekey')))
     signals <- subset(df, dom == 'SIGNALP')
@@ -431,8 +431,8 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
       return (input)
     }
     return ()
-  })$uniprot)
-
+  },.progress="text")$uniprot)
+  message("Identifying type II stems")
   stem_typeii <- ddply(between,.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
@@ -450,8 +450,8 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
       wanted$startsite <- NULL
       return (wanted)
     }
-  })
-
+  },.progress="text")
+  message("Identifying Signalp stems")
   signalp_stem <- ddply(between,.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
@@ -472,9 +472,9 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
       wanted$startsite <- NULL
       return (wanted)
     }
-  })
-
-  stem_typei <- ddply(between,.(sitekey),function(input) {
+  },.progress="text")
+  message("Identifying type I stems")
+  stem_typei <- ddply(subset(between, ! sitekey %in% signalp_stem$sitekey),.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
     df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
@@ -485,14 +485,17 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
     filtered <- subset(df,startsite>0)
     filtered <- filtered[order(filtered$startsite),]
     # We have a something -- TMHELIX
-    if ( grepl("tmhmm-TMhelix",filtered$dom[1]) ) {
+
+    # If we have a domain spanning the transmembrane, we want to call this a type I transmembrane too
+
+    if ( ((dim(filtered)[1] >= 1) & ( filtered$dom[1] == "tmhmm-TMhelix" )) | ((dim(filtered)[1] >= 2) & (filtered$dom[2] == "tmhmm-TMhelix") & (as.numeric(filtered$end[1]) > as.numeric(filtered$end[2]) ) )) {
       wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance & startsite <= filtered$startsite[1] ) | (siteend > 0 & siteend <= stem_distance)))
       wanted$siteend <- NULL
       wanted$startsite <- NULL
       return (wanted)
     }
     return ()
-  })
+  },.progress="text")
 
   interdomain <- subset(between, ! sitekey %in% stem_typei$sitekey & ! sitekey %in% stem_typeii$sitekey & ! sitekey %in% signalp_stem$sitekey )
   norc <- subset(outside, ! sitekey %in% between$sitekey )
@@ -574,9 +577,12 @@ getGOTerms <- function(organism,uniprots) {
   names(terms) <- c('gene_id','go_id','Evidence','Ontology')
   terms <- merge( terms, data.frame(gene_id=query_ids,uniprot=tolower(names(query_ids))), by='gene_id')
   library('GO.db')
-  go_terms <- (select(GO.db, terms$go_id,"TERM"))
-  names(go_terms) <- c('go_id','term')
-  terms <- merge( terms, go_terms, by='go_id')
+  if (dim(terms)[1] > 0) {
+    go_terms <- (select(GO.db, terms$go_id,"TERM"))
+    names(go_terms) <- c('go_id','term')
+    terms <- merge( terms, go_terms, by='go_id')
+    return (terms)
+  }
   return (terms)
 }
 
