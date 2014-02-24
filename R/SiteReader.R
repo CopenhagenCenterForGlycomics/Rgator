@@ -44,6 +44,21 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 	}
 }
 
+gatorConnector <- function() {
+  library(websockets)
+  server = create_server(port=8080)
+  daemonize(server)
+  view <- function(prot) {
+    if (length(server$client_sockets) > 0) {
+      websocket_write(paste(unique(prot),collapse=','), server$client_sockets[[1]])
+    }
+  }
+  assign("Viewp",view,envir = .GlobalEnv)
+  stopConnector <- function() {
+    websocket_close(server)
+  }
+  assign("stopConnector",stopConnector,envir=.GlobalEnv)
+}
 
 syncDatasets <- function() {
   files <- list.files(pattern = "\\.domaintoolsession$")
