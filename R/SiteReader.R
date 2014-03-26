@@ -577,7 +577,7 @@ berrylogo<-function(pwm,backFreq,zero=.0001){
 }
 
 getEntrezIds <- function(organism,ids) {
-  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dbname<-organisms[[as.character(organism)]]
   if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
@@ -594,7 +594,7 @@ getEntrezIds <- function(organism,ids) {
 }
 
 convertEntrezIds <- function(organism,ids) {
-  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dbname<-organisms[[as.character(organism)]]
   if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
@@ -606,12 +606,15 @@ convertEntrezIds <- function(organism,ids) {
   retdata
 }
 
+getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
+  unique(convertEntrezIds(organism,unique(unlist(sapply(wanted_terms, function(go) {   geneIdsByCategory(enrichment)[[go]]  })))))
+}
 
 getGOTerms <- function(organism,uniprots) {
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
   }
-  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   query_ids <- getEntrezIds(organism,uniprots)
   godb <- get( sub("\\.db","GO",organisms[as.character(organism)] ) )
   terms <- toTable(godb[query_ids])
@@ -627,12 +630,38 @@ getGOTerms <- function(organism,uniprots) {
   return (terms)
 }
 
+GO_children <- function(node = "GO:0008150", ontology = "BP") {
+    library('GO.db')
+    if (ontology == "BP") GOCHILDREN <- GOBPCHILDREN
+    if (ontology == "CC") GOCHILDREN <- GOCCCHILDREN
+    if (ontology == "MF") GOCHILDREN <- GOMFCHILDREN
+    parents <- node
+
+    # initialize output
+    out <- c(parents)
+
+    # do the following until there are no more parents
+    while (any(!is.na(parents))) {
+        # Get the unique children of the parents (that aren't NA)
+        children <- unique(unlist(mget(parents[!is.na(parents)], GOCHILDREN)))
+
+        # append chldren to beginning of `out`
+        # unique will keep the first instance of a duplicate
+        # (i.e. the most recent child is kept)
+        out <- unique(append(children[!is.na(children)], out))
+
+        # children become the parents of the next generation
+        parents <- children
+    }
+    return(out)
+}
+
 getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over') {
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
   }
-  organisms <- list('9606'='org.Hs.eg.db','10090'='org.MM.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
   if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite(dbname,lib=basepath)
@@ -653,7 +682,7 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
               universeGeneIds=unlist(universe),
               ontology=ontology,
               pvalueCutoff=0.05,
-              conditional=FALSE,
+              conditional=TRUE,
               testDirection=direction,
               annotation=as.character(organisms[as.character(organism)])
              )
