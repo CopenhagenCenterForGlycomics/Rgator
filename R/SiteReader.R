@@ -5,7 +5,6 @@
 #install_github("httr",username="hirenj")
 library(httr)
 library(plyr)
-library(keychain)
 library(data.table)
 library(RCurl)
 library(rjson)
@@ -17,20 +16,21 @@ library(gridExtra)
 options(stringsAsFactors = FALSE)
 
 current_token <- NULL
+connection_key <- NULL
 
 doSignin <- function() {
   if (!is.null(current_token)) {
-    return(current_token)
+    return((list(access_token=current_token)))
+  }
+  if (! is.null(getOption("current_token"))) {
+    return(list(access_token=getOption("current_token")))
   }
 	google <- oauth_endpoint(NULL,"auth","token", base_url= "https://accounts.google.com/o/oauth2")
 	gdrive <- oauth_app("google",getOption("GoogleClientId"),secret=getOption("GoogleClientSecret"))
 
-	if (!is.null(getPassword("GoogleRefreshToken",quiet=TRUE))) {
-    return (oauth2.0_refresh(google,gdrive,getPassword("GoogleRefreshToken")))
-	}
 	token <- oauth2.0_token(google, gdrive,scope="https://www.googleapis.com/auth/drive.readonly",use_oob = TRUE )
-	setPassword("GoogleRefreshToken",,token$refresh_token)
-  current_token <- token
+
+  current_token <- token$access_token
 	return (token)
 }
 
@@ -44,19 +44,45 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 	}
 }
 
+askForSignin <- function(WS) {
+  websocket_write(rjson::toJSON(list(message="upgradeConnection",data=getOption("connection_key"))), WS)
+}
+
+acceptToken <- function(json) {
+  message("Successfully connected to GlycoDomain viewer")
+  options(current_token = json$data$authtoken)
+  options(connection_key = json$data$connectionkey)
+}
+
 gatorConnector <- function() {
   library(websockets)
-  server = create_server(port=8080)
+  server = create_server(port=8880)
   daemonize(server)
+
   view <- function(prot) {
     if (length(server$client_sockets) > 0) {
-      websocket_write(paste(unique(prot),collapse=','), server$client_sockets[[1]])
+      websocket_write(rjson::toJSON(list(message="showProtein", data=unique(prot))), server$client_sockets[[1]])
     }
   }
-  assign("Viewp",view,envir = .GlobalEnv)
+
+  receiver <- function(DATA,WS,...) {
+    json <- rjson::fromJSON(rawToChar(DATA))
+    if (json$message == "token") {
+      acceptToken(json)
+    }
+  }
+
+  setCallback("receive",receiver,server)
+  setCallback("established", askForSignin, server)
+
   stopConnector <- function() {
     websocket_close(server)
+    options(current_token = NULL)
+    options(connection_key = NULL)
+    rm("stopConnector",envir=.GlobalEnv)
+    rm("Viewp",envir=.GlobalEnv)
   }
+  assign("Viewp",view,envir = .GlobalEnv)
   assign("stopConnector",stopConnector,envir=.GlobalEnv)
 }
 
