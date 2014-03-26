@@ -780,7 +780,7 @@ getGoogleFile <- function(fileId) {
   }
 
 	access_info <- doSignin()
-	gdrive_sig <- sign_oauth2.0(access_info$access_token)
+	gdrive_sig <- add_headers(Authorization = paste('Bearer', access_info$access_token))
   url <- paste('https://www.googleapis.com/drive/v2/files/',fileId,sep='')
   if (!is.null(etag)) {
     gdrive_sig$httpheader['If-None-Match'] <- etag
