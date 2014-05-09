@@ -563,13 +563,13 @@ generateVennDiagram <- function(data=list(),title="Venn Diagram") {
 
 berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
-  bval<-plyr::laply(names(backFreq),function(x){log(pwm[x,])-log(backFreq[[x]])})
+  bval<-plyr::laply(names(backFreq),function(x){log2(pwm[x,])-log2(backFreq[[x]])})
   row.names(bval)<-names(backFreq)
   window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
   dimnames(bval)[[2]]<- c((-1*window_size):window_size)
   p<-ggplot2::ggplot(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
     ggplot2::geom_abline(ggplot2::aes(slope=0), colour = "grey",size=2)+
-    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),size=8)+
+    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),size=8)+scale_colour_manual(values=c( "#000000", "#006666", "#ff0000", "#ff0000", "#000000", "#006666", "#0000ff", "#000000", "#0000ff", "#000000", "#000000", "#006666", "#000000", "#006666", "#0000ff", "#006666", "#006666", "#000000", "#000000", "#006666" ))+
     ggplot2::theme(legend.position="none")+
     ggplot2::scale_x_continuous(name="Position",breaks=(-1*window_size):window_size)+
     ggplot2::scale_y_continuous(name="Log relative frequency")
@@ -631,7 +631,6 @@ getGOTerms <- function(organism,uniprots) {
 }
 
 GO_children <- function(node = "GO:0008150", ontology = "BP") {
-    library('GO.db')
     if (ontology == "BP") GOCHILDREN <- GOBPCHILDREN
     if (ontology == "CC") GOCHILDREN <- GOCCCHILDREN
     if (ontology == "MF") GOCHILDREN <- GOMFCHILDREN
@@ -639,12 +638,12 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
 
     # initialize output
     out <- c(parents)
-
     # do the following until there are no more parents
     while (any(!is.na(parents))) {
         # Get the unique children of the parents (that aren't NA)
-        children <- unique(unlist(mget(parents[!is.na(parents)], GOCHILDREN)))
 
+        children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
+        
         # append chldren to beginning of `out`
         # unique will keep the first instance of a duplicate
         # (i.e. the most recent child is kept)
@@ -660,6 +659,9 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
+  }
+  if ( ! library("GOstats",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite("GOstats")
   }
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
