@@ -6,5 +6,5 @@ Date: 2013-10-14
 Author: Hiren Joshi
 Maintainer: Hiren Joshi <Rgator@glycocode.com>
 Description: Connector Package to the GlycoDomainViewer
-Imports: plyr, data.table, rjson, ggplot2, VennDiagram
+Imports: plyr, data.table, rjson, ggplot2, VennDiagram, gridExtra
 License: TBD
