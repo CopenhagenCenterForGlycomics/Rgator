@@ -761,7 +761,7 @@ getGatorSnapshot <- function(gatorURL,fileId) {
     message("Setting etag retrieved from HTTP headers")
     retval$etag <- file_request$header[['etag']]
   }
-  if (! "title" %in% names(retval) && title ) {
+  if (! "title" %in% names(retval) && fileId ) {
     retval$title <- fileId
   }
   fileConn<-file(filename)
