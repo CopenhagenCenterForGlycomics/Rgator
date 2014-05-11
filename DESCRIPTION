@@ -1,9 +1,10 @@
 Package: Rgator
 Type: Package
-Title: What the package does (short line)
+Title: Connector Package to GlycoDomainViewer
 Version: 1.0
 Date: 2013-10-14
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
+Author: Hiren Joshi
+Maintainer: Hiren Joshi <Rgator@glycocode.com>
+Description: Connector Package to the GlycoDomainViewer
+Imports: plyr
+License: TBD
