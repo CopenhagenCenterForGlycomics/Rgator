@@ -3,6 +3,7 @@
 # load_all('~/dev/Rgator/')
 
 #install_github("httr",username="hirenj")
+#install_github("zeenogee/R-Websockets")
 library(httr)
 library(plyr)
 library(data.table)
