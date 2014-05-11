@@ -715,7 +715,7 @@ getGatorSnapshotSubset <- function(fileId,accs) {
 
   message(file_request$status_code)
   message("Retrieving data from Gator for ",httr::content(file_request)$title)
-  retval <- httr::content(file_request)
+  retval <- rjson::fromJSON(httr::content(file_request,"text"))
   retval$etag <- format(retval$etag,scientific=FALSE)
   return (retval)
 }
@@ -752,7 +752,7 @@ getGatorSnapshot <- function(gatorURL,fileId) {
 
   message(file_request$status_code)
   message("Retrieving data from Gator for ",httr::content(file_request)$title)
-  retval <- httr::content(file_request)
+  retval <- rjson::fromJSON(httr::content(file_request,"text"))
   message("Retrieved data out from downloaded file")
   if ("etag" %in% names(retval)) {
     message("Setting etag retrieved from within response")
@@ -800,7 +800,7 @@ getGoogleFile <- function(fileId) {
   }
   message("Retrieving data from Google for ",httr::content(file_meta)$title)
 	file_data <- GET(httr::content(file_meta)$downloadUrl,gdrive_sig)
-  retval <- httr::content(file_data)
+  retval <- rjson::fromJSON(httr::content(file_data,"text"))
   retval$etag <- httr::content(file_meta)$etag
   retval$title <- httr::content(file_meta)$title
 
