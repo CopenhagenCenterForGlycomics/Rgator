@@ -444,6 +444,7 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
 getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
   message("Retrieving Uniprot sequences")
   seqdat <- getUniprotSequences(unique(inputsites$uniprot))
+  message("Retrieved sequences")
   domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot',allow.cartesian=TRUE)
   domdat$aalength <- nchar(domdat$sequence)
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
@@ -547,6 +548,37 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
   #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
   #                         else return empty
   return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem=rbind(stem_typei,stem_typeii,signalp_stem), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc  )  )
+}
+
+cacheFile <- function(url,fileId,gzip=F) {
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dir.create(basepath,showWarnings=FALSE)
+  filename <- file.path(basepath,paste("gator-",fileId,sep=''))
+  etag <- NULL
+  if (file.exists(filename)) {
+    if (gzip) {
+      filename <- gzfile(filename)
+    }
+    return (read.delim(filename,header=F,sep='\t'))
+  }
+  download.file(url,filename)
+
+  if (gzip) {
+    filename <- gzfile(filename)
+  }
+  return (read.delim(filename,header=F,sep='\t'))
+}
+
+cddidToSuperfamily <- function(cddids) {
+  cdd_superfamily_links <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/family_superfamily_links","cdd-family-superfamily")[,c(1,3)]
+  names(cdd_superfamily_links) <- c('cddid','clusterid')
+  c(cddids[ ! cddids %in% cdd_superfamily_links$cddid ],as.character(unique(subset(cdd_superfamily_links, cddid %in% unique(cddids))$clusterid)))
+}
+
+getCddNames <- function(cddids) {
+  cddid_all <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cddid_all.tbl.gz","cddid-all",gzip=T)
+  names(cddid_all) <- c('id','dom','short','long')
+  merge(data.frame(dom=cddids),cddid_all,by='dom',all.x=T)
 }
 
 uniqueframe <- function(set){
