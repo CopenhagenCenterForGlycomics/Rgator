@@ -65,6 +65,16 @@ gatorConnector <- function() {
       websocket_write(rjson::toJSON(list(message="showProtein", data=unique(prot))), server$client_sockets[[1]])
     }
   }
+  align <- function(prot) {
+    if (length(server$client_sockets) > 0) {
+      websocket_write(rjson::toJSON(list(message="alignProtein", data=unique(prot))), server$client_sockets[[1]])
+    }
+  }
+  compactRenderer <- function() {
+    if (length(server$client_sockets) > 0) {
+      websocket_write(rjson::toJSON(list(message="compactRenderer", data="")), server$client_sockets[[1]])
+    }
+  }
 
   receiver <- function(DATA,WS,...) {
     json <- rjson::fromJSON(rawToChar(DATA))
@@ -82,8 +92,12 @@ gatorConnector <- function() {
     options(connection_key = NULL)
     rm("stopConnector",envir=.GlobalEnv)
     rm("Viewp",envir=.GlobalEnv)
+    rm("alignProtein",envir=.GlobalEnv)
+    rm("compactRenderer",envir=.GlobalEnv)
   }
   assign("Viewp",view,envir = .GlobalEnv)
+  assign("alignProtein",align,envir = .GlobalEnv)
+  assign("compactRenderer",compactRenderer,envir=.GlobalEnv)
   assign("stopConnector",stopConnector,envir=.GlobalEnv)
 }
 
@@ -175,8 +189,10 @@ downloadOrthologies <- function() {
   assign('gator.orthology',rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
 }
 
-downloadDomains <- function(organism) {
-  downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
+downloadDomains <- function(organism=c('9060')) {
+  if ("9060" %in% organism) {
+    downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
+  }
   downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
 }
 
@@ -572,7 +588,10 @@ cacheFile <- function(url,fileId,gzip=F) {
 cddidToSuperfamily <- function(cddids) {
   cdd_superfamily_links <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/family_superfamily_links","cdd-family-superfamily")[,c(1,3)]
   names(cdd_superfamily_links) <- c('cddid','clusterid')
-  c(cddids[ ! cddids %in% cdd_superfamily_links$cddid ],as.character(unique(subset(cdd_superfamily_links, cddid %in% unique(cddids))$clusterid)))
+  for(i in 1:nrow(cdd_superfamily_links)) {
+    cddids[ cddids==cdd_superfamily_links[[i,'cddid' ]] ] <- cdd_superfamily_links[[ i , 'clusterid'  ]]
+  }
+  cddids
 }
 
 getCddNames <- function(cddids) {
@@ -621,6 +640,9 @@ getEntrezIds <- function(organism,ids) {
   uprotmap <- sub("\\.db","UNIPROT",dbname)
   uprots <- unique(intersect(  toupper(ids),mappedRkeys(get(uprotmap))))
   entrez_ids <- toTable(revmap(get(uprotmap))[  uprots ])
+  if ("systematic_name" %in% names(entrez_ids)) {
+    entrez_ids <- subset(merge(entrez_ids,toTable(get(sub("\\.db","ENTREZID",dbname))[]),by='systematic_name'),select=c('gene_id','uniprot_id'))
+  }
   names(entrez_ids) <- c('gene_id','uniprot')
   gene_ids <- entrez_ids$gene_id
   names(gene_ids) <- entrez_ids$uniprot
@@ -635,7 +657,11 @@ convertEntrezIds <- function(organism,ids) {
     biocLite(dbname,lib=basepath)
   }
   library(dbname,character.only=TRUE,lib.loc=c(basepath))
-  retdata <- select(get(dbname), keys=as.character(ids), cols=c('UNIPROT', 'SYMBOL', 'ENTREZID'), keytype="ENTREZID")
+  wanted_cols <- c('UNIPROT', 'SYMBOL', 'ENTREZID')
+  if (as.character(organism) == '4932') {
+    wanted_cols <- c('UNIPROT', 'GENENAME', 'ENTREZID')
+  }
+  retdata <- select(get(dbname), keys=as.character(ids), cols=wanted_cols, keytype="ENTREZID")
   names(retdata) <- c('geneid','uniprot','genename')
   retdata
 }
