@@ -649,7 +649,7 @@ getEntrezIds <- function(organism,ids) {
   return (gene_ids)
 }
 
-convertEntrezIds <- function(organism,ids) {
+convertEntrezIds <- function(organism,ids=c()) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dbname<-organisms[[as.character(organism)]]
@@ -657,11 +657,14 @@ convertEntrezIds <- function(organism,ids) {
     biocLite(dbname,lib=basepath)
   }
   library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  if (length(ids) < 1) {
+    return( data.frame(geneid=NA,uniprot=NA,genename=NA)[numeric(0),] )
+  }
   wanted_cols <- c('UNIPROT', 'SYMBOL', 'ENTREZID')
   if (as.character(organism) == '4932') {
     wanted_cols <- c('UNIPROT', 'GENENAME', 'ENTREZID')
   }
-  retdata <- select(get(dbname), keys=as.character(ids), cols=wanted_cols, keytype="ENTREZID")
+  retdata <- select(get(dbname), keys=as.character(ids), columns=wanted_cols, keytype="ENTREZID")
   names(retdata) <- c('geneid','uniprot','genename')
   retdata
 }
@@ -676,21 +679,36 @@ getGOTerms <- function(organism,uniprots) {
   }
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   query_ids <- getEntrezIds(organism,uniprots)
+  if (as.character(organism) == '4932') {
+    entrez_ids <- query_ids
+    entrez_mapping <- toTable(revmap(org.Sc.sgdENTREZID)[query_ids])
+    query_ids <- unlist(entrez_mapping[1])
+  }
   godb <- get( sub("\\.db","GO",organisms[as.character(organism)] ) )
   terms <- toTable(godb[query_ids])
   names(terms) <- c('gene_id','go_id','Evidence','Ontology')
-  terms <- merge( terms, data.frame(gene_id=query_ids,uniprot=tolower(names(query_ids))), by='gene_id')
+  if (as.character(organism) == '4932') {
+    names(terms) <- c('systematic_name','go_id','Evidence','Ontology')
+    terms <- merge(terms, data.frame(systematic_name=query_ids), by='systematic_name')
+    terms <- merge(terms, entrez_mapping, by='systematic_name')
+    terms <- uniqueframe( merge(terms, data.frame(uniprot=names(entrez_ids),gene_id=entrez_ids) , by='gene_id'))
+    terms$uniprot <- tolower(terms$uniprot)
+  } else {
+    terms <- merge( terms, data.frame(gene_id=query_ids,uniprot=tolower(names(query_ids))), by='gene_id')
+  }
   library('GO.db')
   if (dim(terms)[1] > 0) {
     go_terms <- (select(GO.db, terms$go_id,"TERM"))
     names(go_terms) <- c('go_id','term')
     terms <- merge( terms, go_terms, by='go_id')
+    terms <- uniqueframe(terms)
     return (terms)
   }
   return (terms)
 }
 
 GO_children <- function(node = "GO:0008150", ontology = "BP") {
+    library('GO.db')
     if (ontology == "BP") GOCHILDREN <- GOBPCHILDREN
     if (ontology == "CC") GOCHILDREN <- GOCCCHILDREN
     if (ontology == "MF") GOCHILDREN <- GOMFCHILDREN
@@ -701,9 +719,9 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
     # do the following until there are no more parents
     while (any(!is.na(parents))) {
         # Get the unique children of the parents (that aren't NA)
+        #children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
+        children <- unique(unlist(toTable(GOCHILDREN[parents[!is.na(parents)]])[1]))
 
-        children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
-        
         # append chldren to beginning of `out`
         # unique will keep the first instance of a duplicate
         # (i.e. the most recent child is kept)
