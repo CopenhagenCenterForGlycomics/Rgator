@@ -277,7 +277,6 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
     # We need to re-arrange the columns here so that the uniprot column
     # ends up as the first column for consistency
-
     wanted_cols <- names(frame)
     frame <- subset(frame,select=c('uniprot',wanted_cols[!wanted_cols == 'uniprot']))
     setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
@@ -604,10 +603,13 @@ uniqueframe <- function(set){
   return(as.data.frame(unique(as.matrix(set))))
 }
 
-generateLogoPlot <- function(dataframe,windowcol) {
+generateLogoPlot <- function(dataframe,windowcol,frequencies=c()) {
   uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
-  pwm <- calculatePWM(dataframe,windowcol,names(uniprot_2013_12_freq))
-  return(berrylogo(pwm,uniprot_2013_12_freq))
+  if(length(frequencies) < 1) {
+    frequencies <- uniprot_2013_12_freq
+  }
+  pwm <- calculatePWM(dataframe,windowcol,names(frequencies))
+  return(berrylogo(pwm,frequencies))
 }
 
 generateVennDiagram <- function(data=list(),title="Venn Diagram") {
@@ -616,7 +618,7 @@ generateVennDiagram <- function(data=list(),title="Venn Diagram") {
 
 berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
-  bval<-plyr::laply(names(backFreq),function(x){log2(pwm[x,])-log2(backFreq[[x]])})
+  bval<-plyr::laply(names(backFreq),function(x){log10(pwm[x,])-log10(backFreq[[x]])})
   row.names(bval)<-names(backFreq)
   window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
   dimnames(bval)[[2]]<- c((-1*window_size):window_size)
@@ -648,6 +650,24 @@ getEntrezIds <- function(organism,ids) {
   names(gene_ids) <- entrez_ids$uniprot
   return (gene_ids)
 }
+
+getGeneNames <- function(organism,ids) {
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  basepath <- file.path(system.file(package="Rgator"),"cachedData")
+  dbname<-organisms[[as.character(organism)]]
+  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    biocLite(dbname,lib=basepath)
+  }
+  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  wanted_cols <- c('UNIPROT', 'SYMBOL' )
+  if (as.character(organism) == '4932') {
+    wanted_cols <- c('UNIPROT','GENENAME')
+  }
+  mapping <- select(get(dbname), keys=c(toupper(ids)), columns=wanted_cols, keytype="UNIPROT")
+  names(mapping) <- c('uniprot','symbol')
+  return (mapping)
+}
+
 
 convertEntrezIds <- function(organism,ids=c()) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
@@ -733,7 +753,7 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
-getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over') {
+getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA) {
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
@@ -750,6 +770,12 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   if (length(query_ids) < 1 & length(uniprots) > 0) {
     query_ids <- getEntrezIds(organism,uniprots)
   }
+  if (as.character(organism) == '4932' & length(query_ids) > 0) {
+    entrez_ids <- query_ids
+    entrez_mapping <- toTable(revmap(org.Sc.sgdENTREZID)[query_ids])
+    query_ids <- unlist(entrez_mapping[1])
+  }
+
   if (length(universe) < 1) {
     universe <- as.list( mappedkeys(get( sub("\\.db","GO",organisms[as.character(organism)] ) )) )
   } else {
@@ -757,6 +783,7 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   }
   library('GO.db')
   library('GOstats')
+  if (is.na(supplemental.terms)) {
   params <- new('GOHyperGParams',
               geneIds=query_ids,
               universeGeneIds=unlist(universe),
@@ -766,10 +793,27 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
               testDirection=direction,
               annotation=as.character(organisms[as.character(organism)])
              )
+  } else {
+    library("GOstats")
+    library("GSEABase")
+    library("AnnotationDbi")
+    super_terms = subset( unique(rbind ( as.data.frame(toTable( get( sub("\\.db","GO",organisms[as.character(organism)] ) )  )), supplemental.terms)), Ontology==ontology)
+    frame=GOFrame(data.frame(super_terms$go_id, super_terms$Evidence, super_terms$gene_id),organism=as.character(organism))
+    allFrame=GOAllFrame(frame)
+    gsc <- GeneSetCollection(allFrame, setType = GOCollection())
+    params <- GSEAGOHyperGParams(name="Supplemental GO annotation",
+                             geneSetCollection=gsc, geneIds = query_ids, universeGeneIds = unlist(universe),
+                             ontology = ontology, pvalueCutoff = 0.05, conditional = TRUE, testDirection =  direction)
+  }
   hgOver <- hyperGTest(params)
   return (hgOver)
 }
 
+tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829'),ontology='CC') {
+  all_terms <- getGOTerms(organism,uniprot)
+  go_ids <- sapply( wanted, function(x) { GO_children(x,ontology) }, USE.NAMES=T,simplify=F )
+  rbindlist(sapply(names(go_ids),function(x) { expand.grid(go_id=x,term=Term(x),uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot)) },simplify=F))
+}
 
 addSiteColumn <- function(dataframe) {
   dataset <- ddply(dataframe,.(uniprot),function(df) { vals <- c(1:(dim(df)[1])); df$site <- vals; return (df); })
