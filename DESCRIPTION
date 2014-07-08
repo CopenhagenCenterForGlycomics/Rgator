@@ -7,5 +7,6 @@ Author: Hiren Joshi
 Maintainer: Hiren Joshi <Rgator@glycocode.com>
 Description: Connector Package to the GlycoDomainViewer
 Depends: httr, plyr, data.table, RCurl, rjson, ggplot2, VennDiagram, gridExtra
-Imports: plyr, data.table, rjson, ggplot2, VennDiagram, gridExtra, websockets,jsonlite
+Imports: plyr, data.table, rjson, ggplot2, VennDiagram, gridExtra, jsonlite
+Suggests: websockets
 License: TBD
