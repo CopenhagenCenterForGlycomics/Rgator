@@ -727,6 +727,35 @@ getGOTerms <- function(organism,uniprots) {
   return (terms)
 }
 
+GO_parents <- function(node = "GO:0008150", ontology = "BP") {
+    library('GO.db')
+    if (ontology == "BP") GOPARENTS <- GOBPPARENTS
+    if (ontology == "CC") GOPARENTS <- GOCCPARENTS
+    if (ontology == "MF") GOPARENTS <- GOMFPARENTS
+    kids <- node
+
+    # initialize output
+    out <- c(kids)
+    # do the following until there are no more parents
+    while (any(!is.na(kids))) {
+        # Get the unique children of the parents (that aren't NA)
+        #children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
+        parents <- unique(unlist(toTable(GOPARENTS[kids[!is.na(kids)]])[2]))
+        # append chldren to beginning of `out`
+        # unique will keep the first instance of a duplicate
+        # (i.e. the most recent child is kept)
+        out <- unique(append(parents[!is.na(parents)], out))
+
+        # children become the parents of the next generation
+        kids <- parents
+        if ('all' %in% kids) {
+          kids <- c(NA)
+        }
+    }
+    return(out)
+}
+
+
 GO_children <- function(node = "GO:0008150", ontology = "BP") {
     library('GO.db')
     if (ontology == "BP") GOCHILDREN <- GOBPCHILDREN
@@ -753,7 +782,7 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
-getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA) {
+getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
   basepath <- file.path(system.file(package="Rgator"),"cachedData")
   if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
     biocLite("GO.db")
@@ -789,7 +818,7 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
               universeGeneIds=unlist(universe),
               ontology=ontology,
               pvalueCutoff=0.05,
-              conditional=TRUE,
+              conditional=conditional,
               testDirection=direction,
               annotation=as.character(organisms[as.character(organism)])
              )
