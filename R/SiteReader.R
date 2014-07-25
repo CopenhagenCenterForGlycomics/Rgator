@@ -250,6 +250,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
         return ()
       }
+      message("No etag match, continuing")
     } else {
       frame <- loadParsedJson(data$title)
       if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
@@ -262,8 +263,19 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   }
 
   message("Preparing to parse data")
-
-  if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
+  if (!is.null(data$defaults$rKeys) && data$defaults$rKeys == c('base64')) {
+    all_prots <- names(data$data)
+    names(all_prots) <- all_prots
+    frame <- llply(all_prots,.fun=function(uprot) {
+      if (nchar(data$data[[uprot]]) > 0) {
+        decodeBase64(data$data[[uprot]])
+      }
+    },.progress="text")
+    assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
+    attributes(frame)$etag <- data$etag
+    writeParsedJson(frame,data$title)
+    return (data.frame())
+  } else if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
     frame <- rbindlist(llply(all_prots,.fun=function(uprot) {
       frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
@@ -320,6 +332,31 @@ writeParsedJson <- function(frame,title) {
   dir.create(basepath,showWarnings=FALSE)
   filename <- file.path(basepath,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
   save(frame,file=filename)
+}
+
+decodeBase64 <- function(base64) {
+  decoded <- RCurl::base64Decode(base64,'raw');
+  readBin( decoded, 'numeric', length(decoded)/4 ,4);
+}
+
+testParseBJson <- function(filename) {
+  etag <- NULL
+  if (file.exists(filename)) {
+    fileConn <- file(filename,"r")
+    message("Loading cached file")
+    origData <- rjson::fromJSON(,fileConn)
+    close(fileConn)
+    etag <- origData$etag
+  }
+  all_prots <- names(origData$data)
+  names(all_prots) <- all_prots
+  frame <- llply(all_prots,.fun=function(uprot) {
+    if (nchar(origData$data[[uprot]]) > 0) {
+      decodeBase64(origData$data[[uprot]])
+    }
+  },.progress="text")
+
+  return (frame)
 }
 
 testParseJson <- function(filename) {
@@ -618,16 +655,23 @@ generateVennDiagram <- function(data=list(),title="Venn Diagram") {
 
 berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
-  bval<-plyr::laply(names(backFreq),function(x){log10(pwm[x,])-log10(backFreq[[x]])})
+  bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / backFreq[[x]] })
   row.names(bval)<-names(backFreq)
+  hydrophobicity <- c(rep('#0000ff',6),rep('#00ff66',6),rep('#000000',8))
+  names(hydrophobicity) <- c('R','K','D','E','N','Q','S','G','H','T','A','P','Y','V','M','C','L','F','I','W')
+  chemistry <- c(rep('#00ff66',7),rep('#0000ff',3),rep('#ff0000',2),rep('#000000',8))
+  names(chemistry) <- unlist(strsplit('GSTYCQNKRHDEAVLIPWFM',''))
+  bval <- bval[names(hydrophobicity),]
   window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
   dimnames(bval)[[2]]<- c((-1*window_size):window_size)
   p<-ggplot2::ggplot(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
-    ggplot2::geom_abline(ggplot2::aes(slope=0), colour = "grey",size=2)+
-    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),size=8)+scale_colour_manual(values=c( "#000000", "#006666", "#ff0000", "#ff0000", "#000000", "#006666", "#0000ff", "#000000", "#0000ff", "#000000", "#000000", "#006666", "#000000", "#006666", "#0000ff", "#006666", "#006666", "#000000", "#000000", "#006666" ))+
+    ggplot2::geom_line(ggplot2::aes(y=1), colour = "grey",size=2)+
+    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),face='bold',size=8)+scale_colour_manual(values=chemistry)+
     ggplot2::theme(legend.position="none")+
     ggplot2::scale_x_continuous(name="Position",breaks=(-1*window_size):window_size)+
-    ggplot2::scale_y_continuous(name="Log relative frequency")
+    ggplot2::scale_y_continuous(name="Relative frequency",breaks=c(0.0625,0.125,0.25,0.5,1,seq(2,20,by=2)),limits=c(2^-11,20),label=function(x) format(x,nsmall = 2,drop0trailing=T,scientific = FALSE))+
+    ggplot2::coord_trans(y='log2')+
+    ggplot2::theme_bw()
   return(p)
 }
 
@@ -832,7 +876,7 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
     gsc <- GeneSetCollection(allFrame, setType = GOCollection())
     params <- GSEAGOHyperGParams(name="Supplemental GO annotation",
                              geneSetCollection=gsc, geneIds = query_ids, universeGeneIds = unlist(universe),
-                             ontology = ontology, pvalueCutoff = 0.05, conditional = TRUE, testDirection =  direction)
+                             ontology = ontology, pvalueCutoff = 0.05, conditional = conditional, testDirection =  direction)
   }
   hgOver <- hyperGTest(params)
   return (hgOver)
