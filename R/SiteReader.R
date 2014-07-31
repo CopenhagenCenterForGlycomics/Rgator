@@ -4,21 +4,30 @@
 
 #install_github("httr",username="hirenj")
 #install_github("zeenogee/R-Websockets")
-library(httr)
-library(plyr)
-library(data.table)
-library(RCurl)
-library(rjson)
-library(ggplot2)
-library(VennDiagram)
-library(gridExtra)
 
 
 options(stringsAsFactors = FALSE)
 
+gator.cache <- getOption("gator.alternativeCache")
+gator.biocLite.stdlib <- FALSE
+
+if (! is.null(gator.cache)) {
+  dir.create(gator.cache,showWarnings=FALSE)
+  if ( ! gator.cache %in% .libPaths() ) {
+    .libPaths(c(.libPaths(), gator.cache ))
+  }
+} else {
+  gator.cache <- file.path(system.file(package="Rgator"),"cachedData")
+  dir.create(gator.cache,showWarnings=FALSE)
+  gator.biocLite.stdlib <- TRUE
+}
+
 current_token <- NULL
 connection_key <- NULL
 
+#' @importFrom httr oauth_endpoint
+#' @importFrom httr oauth_app
+#' @importFrom httr oauth2.0_token
 doSignin <- function() {
   if (!is.null(current_token)) {
     return((list(access_token=current_token)))
@@ -26,10 +35,10 @@ doSignin <- function() {
   if (! is.null(getOption("current_token"))) {
     return(list(access_token=getOption("current_token")))
   }
-	google <- oauth_endpoint(NULL,"auth","token", base_url= "https://accounts.google.com/o/oauth2")
-	gdrive <- oauth_app("google",getOption("GoogleClientId"),secret=getOption("GoogleClientSecret"))
+	google <- httr::oauth_endpoint(NULL,"auth","token", base_url= "https://accounts.google.com/o/oauth2")
+	gdrive <- httr::oauth_app("google",getOption("GoogleClientId"),secret=getOption("GoogleClientSecret"))
 
-	token <- oauth2.0_token(google, gdrive,scope="https://www.googleapis.com/auth/drive.readonly",use_oob = TRUE )
+	token <- httr::oauth2.0_token(google, gdrive,scope="https://www.googleapis.com/auth/drive.readonly",use_oob = TRUE )
 
   current_token <- token$access_token
 	return (token)
@@ -45,8 +54,10 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 	}
 }
 
+#' @importFrom rjson fromJSON
+#' @importFrom websockets websocket_write
 askForSignin <- function(WS) {
-  websocket_write(rjson::toJSON(list(message="upgradeConnection",data=getOption("connection_key"))), WS)
+  websockets::websocket_write(rjson::toJSON(list(message="upgradeConnection",data=getOption("connection_key"))), WS)
 }
 
 acceptToken <- function(json) {
@@ -55,24 +66,30 @@ acceptToken <- function(json) {
   options(connection_key = json$data$connectionkey)
 }
 
+#' @importFrom websockets daemonize
+#' @importFrom websockets create_server
+#' @importFrom websockets websocket_write
+#' @importFrom websockets websocket_close
+#' @importFrom rjson fromJSON
+#' @importFrom websockets setCallback
+#' @export
 gatorConnector <- function() {
-  library(websockets)
-  server = create_server(port=8880)
-  daemonize(server)
+  server = websockets::create_server(port=8880)
+  websockets::daemonize(server)
 
   view <- function(prot) {
     if (length(server$client_sockets) > 0) {
-      websocket_write(rjson::toJSON(list(message="showProtein", data=unique(prot))), server$client_sockets[[1]])
+      websockets::websocket_write(rjson::toJSON(list(message="showProtein", data=unique(prot))), server$client_sockets[[1]])
     }
   }
   align <- function(prot) {
     if (length(server$client_sockets) > 0) {
-      websocket_write(rjson::toJSON(list(message="alignProtein", data=unique(prot))), server$client_sockets[[1]])
+      websockets::websocket_write(rjson::toJSON(list(message="alignProtein", data=unique(prot))), server$client_sockets[[1]])
     }
   }
   compactRenderer <- function() {
     if (length(server$client_sockets) > 0) {
-      websocket_write(rjson::toJSON(list(message="compactRenderer", data="")), server$client_sockets[[1]])
+      websockets::websocket_write(rjson::toJSON(list(message="compactRenderer", data="")), server$client_sockets[[1]])
     }
   }
 
@@ -83,11 +100,11 @@ gatorConnector <- function() {
     }
   }
 
-  setCallback("receive",receiver,server)
-  setCallback("established", askForSignin, server)
+  websockets::setCallback("receive",receiver,server)
+  websockets::setCallback("established", askForSignin, server)
 
   stopConnector <- function() {
-    websocket_close(server)
+    websockets::websocket_close(server)
     options(current_token = NULL)
     options(connection_key = NULL)
     rm("stopConnector",envir=.GlobalEnv)
@@ -101,6 +118,8 @@ gatorConnector <- function() {
   assign("stopConnector",stopConnector,envir=.GlobalEnv)
 }
 
+#' @importFrom rjson fromJSON
+#' @export
 syncDatasets <- function() {
   files <- list.files(pattern = "\\.domaintoolsession$")
   all_prefs <- list()
@@ -121,7 +140,7 @@ syncDatasets <- function() {
 
 }
 
-
+#' @importFrom plyr ldply
 jsonParser <- function(data,keys) {
   currkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key))>0) { strsplit(key,".",fixed=TRUE)[[1]][1] } }))
   currkeys <- unlist(currkeys[!sapply(currkeys,is.null)])
@@ -131,7 +150,7 @@ jsonParser <- function(data,keys) {
 
   keys <- unlist(lapply(keys,FUN=function(key) { sub("[^\\.]+\\.","",key) }))
   if (length(currkeys) == 1 && currkeys[1] != "*" && (length(keys) > length(currkeys) || keys[1] != currkeys[1]) ) {
-    kidframe <- (ldply(data[[ currkeys[1] ]],.fun=function(dat) { parsed <- jsonParser(dat,keys[!keys %in% localkeys]); return(parsed); }))
+    kidframe <- (plyr::ldply(data[[ currkeys[1] ]],.fun=function(dat) { parsed <- jsonParser(dat,keys[!keys %in% localkeys]); return(parsed); }))
     ## Sometimes if the sites array was empty, we were not repeating the other fields
     ## { "alwayspresent" : "ABCD", "sites" : [] } , { "alwayspresent": "ABCDE" , "sites" : [ { "somekey" : "ABC" , "someotherkey" : "DEF"}]}
     if (dim(kidframe)[2] < length(keys[!keys %in% localkeys])) {
@@ -154,15 +173,15 @@ jsonParser <- function(data,keys) {
     if (length(keys) == 1) {
       if (length(currkeys) > 0 && currkeys[1] == "*") {
         retval <-lapply( data, FUN=function(dat) { return ((jsonParser(dat,keys))) }  )
-        return (ldply(retval))
+        return (plyr::ldply(retval))
       }
       ##
       ## { "orthologs" : {"TAX1" : ["a","b","c"], "TAX2" : ["a","b"] }}
       ##
       if (length(unique(lapply(data[[keys[1]]],length))) > 1) {
-        return (ldply(data[[keys[1]]],.fun=function(list) { return(data.frame(V1=list)) }))
+        return (plyr::ldply(data[[keys[1]]],.fun=function(list) { return(data.frame(V1=list)) }))
       }
-      return (ldply(data[[keys[1]]]))
+      return (plyr::ldply(data[[keys[1]]]))
     }
     datlist <- sapply(c(1:(length(keys)-1)),FUN=function(keyidx) {
       key <- keys[keyidx]
@@ -182,6 +201,7 @@ jsonParser <- function(data,keys) {
   }
 }
 
+#' @export
 downloadOrthologies <- function() {
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/homologene/',list(type='gatorURL',title='orthology.homologene'))
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.treefam.9/',list(type='gatorURL',title='orthology.treefam'))
@@ -189,6 +209,7 @@ downloadOrthologies <- function() {
   assign('gator.orthology',rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
 }
 
+#' @export
 downloadDomains <- function(organism=c('9060')) {
   if ("9060" %in% organism) {
     downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
@@ -196,7 +217,8 @@ downloadDomains <- function(organism=c('9060')) {
   downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
 }
 
-
+#' @importFrom plyr ldply
+#' @importFrom data.table rbindlist
 downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   message("Downloading ",set)
   if (length(grep("gatorURL",config[['type']])) > 0) {
@@ -214,7 +236,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
           if (is.null(accumulated_frame)) {
             accumulated_frame <- frame
           } else {
-            accumulated_frame <- rbindlist(list(accumulated_frame,frame))
+            accumulated_frame <- data.table::rbindlist(list(accumulated_frame,frame))
           }
           if ( i == length(accgroups)) {
             assign(paste("gator.",gsub("[[:space:]]|-","_",config[['title']]),sep=""),accumulated_frame, envir = .GlobalEnv)
@@ -277,12 +299,12 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     return (data.frame())
   } else if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
-    frame <- rbindlist(llply(all_prots,.fun=function(uprot) {
+    frame <- data.table::rbindlist(llply(all_prots,.fun=function(uprot) {
       frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
 
       # We should get a data frame out from the jsonParser - attach the uniprot id as
       # another column into the data frame
-      
+
       frm$uniprot <- rep(uprot,dim(frm)[1])
       return(frm)
     },.progress="text"))
@@ -295,7 +317,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
-    frame <- ldply(data$data,.fun=function(dat) { return (ldply(dat$sites)) },.progress="text")
+    frame <- plyr::ldply(data$data,.fun=function(dat) { return (plyr::ldply(dat$sites)) },.progress="text")
     currnames <- names(frame)
     currnames[1] <- 'uniprot'
     names(frame)<- currnames
@@ -314,9 +336,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 }
 
 loadParsedJson <- function(title) {
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
-  dir.create(basepath,showWarnings=FALSE)
-  filename <- file.path(basepath,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
+  filename <- file.path(gator.cache,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
   frame <- data.frame()
 
   if (file.exists(filename)) {
@@ -328,17 +348,17 @@ loadParsedJson <- function(title) {
 }
 
 writeParsedJson <- function(frame,title) {
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
-  dir.create(basepath,showWarnings=FALSE)
-  filename <- file.path(basepath,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
+  filename <- file.path(gator.cache,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
   save(frame,file=filename)
 }
 
+#' @importFrom RCurl base64Decode
 decodeBase64 <- function(base64) {
   decoded <- RCurl::base64Decode(base64,'raw');
   readBin( decoded, 'numeric', length(decoded)/4 ,4);
 }
 
+#' @importFrom rjson fromJSON
 testParseBJson <- function(filename) {
   etag <- NULL
   if (file.exists(filename)) {
@@ -359,6 +379,8 @@ testParseBJson <- function(filename) {
   return (frame)
 }
 
+#' @importFrom rjson fromJSON
+#' @importFrom data.table rbindlist
 testParseJson <- function(filename) {
   etag <- NULL
   if (file.exists(filename)) {
@@ -369,7 +391,7 @@ testParseJson <- function(filename) {
     etag <- origData$etag
   }
   all_prots <- names(origData$data)
-  frame <- rbindlist(llply(all_prots,.fun=function(uprot) {
+  frame <- data.table::rbindlist(llply(all_prots,.fun=function(uprot) {
     frm <- jsonParser(origData$data[[uprot]],origData$defaults$rKeys )
 
     # We should get a data frame out from the jsonParser - attach the uniprot id as
@@ -393,7 +415,11 @@ testParseJson <- function(filename) {
   return (frame)
 }
 
+#' @importFrom httr GET
+#' @importFrom httr content
+#' @export
 getUniprotIds <- function(taxonomy) {
+  # We should add an option to get unreviewed ids here too
   if (exists(paste("gator.UniProtData.accs.",taxonomy,sep=""))) {
     return ( get(paste("gator.UniProtData.accs.",taxonomy,sep="")) )
   }
@@ -405,6 +431,12 @@ getUniprotIds <- function(taxonomy) {
   return (idlist)
 }
 
+#' @importFrom data.table rbindlist
+#' @importFrom httr POST
+#' @importFrom httr content
+#' @importFrom plyr ldply
+#' @importFrom data.table rbindlist
+#' @export
 getUniprotSequences <- function(accs,wait=0) {
   if (length(accs) > 200) {
     accgroups <- split(accs, ceiling(seq_along(accs)/200))
@@ -415,7 +447,7 @@ getUniprotSequences <- function(accs,wait=0) {
       if (is.null(accumulated_frame)) {
         accumulated_frame <- frame
       } else {
-        accumulated_frame <- rbindlist(list(accumulated_frame,frame))
+        accumulated_frame <- data.table::rbindlist(list(accumulated_frame,frame))
       }
       setTxtProgressBar(pb,i)
     }
@@ -437,14 +469,14 @@ getUniprotSequences <- function(accs,wait=0) {
     return (subset(gator.UniProtData, uniprot %in% accs ))
   }
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
-  fastas <- POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
+  fastas <- httr::POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=RCurl::fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
   if (fastas$status_code != 200) {
     message("Could not retrieve ids")
     return(unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
   }
   contents <- httr::content(fastas,"text")
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
-  seqs <- ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
+  seqs <- plyr::ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
   seqs$V1 <- sub(">?[st][pr]\\|","",seqs$V1)
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   if (length(names(seqs)) < 2) {
@@ -454,12 +486,13 @@ getUniprotSequences <- function(accs,wait=0) {
   }
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
-  assign('gator.UniProtData', rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
+  assign('gator.UniProtData', data.table::rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
   writeParsedJson(gator.UniProtData,'UniProtData')
   Sys.sleep(wait)
   return (unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
 }
 
+#' @export
 calculateSequenceWindow <- function(dataframe,sitecol,window) {
   with_seqs <- merge(dataframe,gator.UniProtData,by='uniprot')
   with_seqs[[sitecol]] <- as.numeric(with_seqs[[sitecol]])
@@ -493,6 +526,9 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
   })
 }
 
+#' @importFrom plyr .
+#' @importFrom plyr ddply
+#' @export
 getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
   message("Retrieving Uniprot sequences")
   seqdat <- getUniprotSequences(unique(inputsites$uniprot))
@@ -508,7 +544,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
   sitekeys_cterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) > as.numeric(end) )$sitekey)
   between <- subset( outside, sitekey %in% intersect(sitekeys_nterm, sitekeys_cterm ) )
   message("Identifying type II proteins")
-  typeii <- unique(ddply(between,.(sitekey),function(input) {
+  typeii <- unique(plyr::ddply(between,plyr::.(sitekey),function(input) {
     df <- unique(subset(input,select=c('dom','start','end','sitekey')))
     signals <- subset(df, dom == 'SIGNALP')
     tms <- subset(df, dom == "tmhmm-TMhelix")
@@ -529,7 +565,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
     return ()
   },.progress="text")$uniprot)
   message("Identifying type II stems")
-  stem_typeii <- ddply(between,.(sitekey),function(input) {
+  stem_typeii <- plyr::ddply(between,plyr::.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
     df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
@@ -548,7 +584,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
     }
   },.progress="text")
   message("Identifying Signalp stems")
-  signalp_stem <- ddply(between,.(sitekey),function(input) {
+  signalp_stem <- plyr::ddply(between,plyr::.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
     df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
@@ -570,7 +606,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
     }
   },.progress="text")
   message("Identifying type I stems")
-  stem_typei <- ddply(subset(between, ! sitekey %in% signalp_stem$sitekey),.(sitekey),function(input) {
+  stem_typei <- plyr::ddply(subset(between, ! sitekey %in% signalp_stem$sitekey),plyr::.(sitekey),function(input) {
     df <- input
     df$start <- as.numeric(df$start)
     df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
@@ -603,9 +639,7 @@ getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0
 }
 
 cacheFile <- function(url,fileId,gzip=F) {
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
-  dir.create(basepath,showWarnings=FALSE)
-  filename <- file.path(basepath,paste("gator-",fileId,sep=''))
+  filename <- file.path(gator.cache,paste("gator-",fileId,sep=''))
   etag <- NULL
   if (file.exists(filename)) {
     if (gzip) {
@@ -621,6 +655,7 @@ cacheFile <- function(url,fileId,gzip=F) {
   return (read.delim(filename,header=F,sep='\t'))
 }
 
+#' @export
 cddidToSuperfamily <- function(cddids) {
   cdd_superfamily_links <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/family_superfamily_links","cdd-family-superfamily")[,c(1,3)]
   names(cdd_superfamily_links) <- c('cddid','clusterid')
@@ -630,6 +665,7 @@ cddidToSuperfamily <- function(cddids) {
   cddids
 }
 
+#' @export
 getCddNames <- function(cddids) {
   cddid_all <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cddid_all.tbl.gz","cddid-all",gzip=T)
   names(cddid_all) <- c('id','dom','short','long')
@@ -640,6 +676,7 @@ uniqueframe <- function(set){
   return(as.data.frame(unique(as.matrix(set))))
 }
 
+#' @export
 generateLogoPlot <- function(dataframe,windowcol,frequencies=c()) {
   uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
   if(length(frequencies) < 1) {
@@ -649,16 +686,31 @@ generateLogoPlot <- function(dataframe,windowcol,frequencies=c()) {
   return(berrylogo(pwm,frequencies))
 }
 
+#' @importFrom grid gTree
+#' @importFrom grid gList
+#' @importFrom grid grid.grabExpr
+#' @importFrom grid grid.draw
+#' @importFrom VennDiagram venn.diagram
+#' @export
 generateVennDiagram <- function(data=list(),title="Venn Diagram") {
-  return (gTree(children = gList(grid.grabExpr(grid.draw(venn.diagram(data,filename=NULL,main=title)))), cl=c("arrange", "ggplot")))
+  require(VennDiagram)
+  return (grid::gTree(children = grid::gList(grid::grid.grabExpr(grid::grid.draw(VennDiagram::venn.diagram(data,filename=NULL,main=title)))), cl=c("arrange", "ggplot")))
 }
 
+#' @importFrom plyr laply
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 geom_line
+#' @importFrom ggplot2 geom_text
+#' @importFrom ggplot2 theme
+#' @importFrom ggplot2 scale_x_continuous
+#' @importFrom ggplot2 coord_trans
+#' @importFrom ggplot2 theme_bw
 berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
   bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / backFreq[[x]] })
   row.names(bval)<-names(backFreq)
   hydrophobicity <- c(rep('#0000ff',6),rep('#00ff66',6),rep('#000000',8))
-  names(hydrophobicity) <- c('R','K','D','E','N','Q','S','G','H','T','A','P','Y','V','M','C','L','F','I','W')
+  names(hydrophobicity) <-  unlist(strsplit('RKDENQSGHTAPYVMCLFIW',''))
   chemistry <- c(rep('#00ff66',7),rep('#0000ff',3),rep('#ff0000',2),rep('#000000',8))
   names(chemistry) <- unlist(strsplit('GSTYCQNKRHDEAVLIPWFM',''))
   bval <- bval[names(hydrophobicity),]
@@ -675,19 +727,19 @@ berrylogo<-function(pwm,backFreq,zero=.0001){
   return(p)
 }
 
+#' Get entrez gene identifiers for a set of UniProt ids
+#'
+#' @importFrom AnnotationDbi toTable
+#' @export
 getEntrezIds <- function(organism,ids) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dbname<-organisms[[as.character(organism)]]
-  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite(dbname,lib=basepath)
-  }
-  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  getBiocLiteLib(dbname)
   uprotmap <- sub("\\.db","UNIPROT",dbname)
-  uprots <- unique(intersect(  toupper(ids),mappedRkeys(get(uprotmap))))
-  entrez_ids <- toTable(revmap(get(uprotmap))[  uprots ])
+  uprots <- unique(intersect(  toupper(ids),mappedRkeys(get(uprotmap,asNamespace(dbname)))))
+  entrez_ids <- AnnotationDbi::toTable(revmap(get(uprotmap,asNamespace(dbname)))[  uprots ])
   if ("systematic_name" %in% names(entrez_ids)) {
-    entrez_ids <- subset(merge(entrez_ids,toTable(get(sub("\\.db","ENTREZID",dbname))[]),by='systematic_name'),select=c('gene_id','uniprot_id'))
+    entrez_ids <- subset(merge(entrez_ids,AnnotationDbi::toTable(get(sub("\\.db","ENTREZID",dbname),asNamespace(dbname))[]),by='systematic_name'),select=c('gene_id','uniprot_id'))
   }
   names(entrez_ids) <- c('gene_id','uniprot')
   gene_ids <- entrez_ids$gene_id
@@ -695,32 +747,33 @@ getEntrezIds <- function(organism,ids) {
   return (gene_ids)
 }
 
+#' Get Gene names for a set of UniProt identifiers
+#'
+#' @export
 getGeneNames <- function(organism,ids) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dbname<-organisms[[as.character(organism)]]
-  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite(dbname,lib=basepath)
-  }
-  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  getBiocLiteLib(dbname)
+  library(dbname,character.only=TRUE)
   wanted_cols <- c('UNIPROT', 'SYMBOL' )
   if (as.character(organism) == '4932') {
     wanted_cols <- c('UNIPROT','GENENAME')
   }
-  mapping <- select(get(dbname), keys=c(toupper(ids)), columns=wanted_cols, keytype="UNIPROT")
+  mapping <- select(get(dbname,asNamespace(dbname)), keys=c(toupper(ids)), columns=wanted_cols, keytype="UNIPROT")
   names(mapping) <- c('uniprot','symbol')
   return (mapping)
 }
 
 
+#' Convert entrez ids to a data frame of uniprot, genename and entrez id
+#'
+#' @importFrom AnnotationDbi select
+#' @export
 convertEntrezIds <- function(organism,ids=c()) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
   dbname<-organisms[[as.character(organism)]]
-  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite(dbname,lib=basepath)
-  }
-  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  getBiocLiteLib(dbname)
+  library(dbname,character.only=TRUE)
   if (length(ids) < 1) {
     return( data.frame(geneid=NA,uniprot=NA,genename=NA)[numeric(0),] )
   }
@@ -728,28 +781,32 @@ convertEntrezIds <- function(organism,ids=c()) {
   if (as.character(organism) == '4932') {
     wanted_cols <- c('UNIPROT', 'GENENAME', 'ENTREZID')
   }
-  retdata <- select(get(dbname), keys=as.character(ids), columns=wanted_cols, keytype="ENTREZID")
+  retdata <- AnnotationDbi::select(get(dbname,asNamespace(dbname)), keys=as.character(ids), columns=wanted_cols, keytype="ENTREZID")
   names(retdata) <- c('geneid','uniprot','genename')
   retdata
 }
 
+#' @export
 getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
   unique(convertEntrezIds(organism,unique(unlist(sapply(wanted_terms, function(go) {   geneIdsByCategory(enrichment)[[go]]  })))))
 }
 
+#' Get the GO terms associated with the given UniProt ids
+#'
+#' @importFrom GO.db GO.db
+#' @importFrom AnnotationDbi toTable
+#' @export
 getGOTerms <- function(organism,uniprots) {
-  if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite("GO.db")
-  }
+  getBiocLiteLib('GO.db')
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   query_ids <- getEntrezIds(organism,uniprots)
   if (as.character(organism) == '4932') {
     entrez_ids <- query_ids
-    entrez_mapping <- toTable(revmap(org.Sc.sgdENTREZID)[query_ids])
+    entrez_mapping <- AnnotationDbi::toTable(revmap(org.Sc.sgd.db::org.Sc.sgdENTREZID)[query_ids])
     query_ids <- unlist(entrez_mapping[1])
   }
-  godb <- get( sub("\\.db","GO",organisms[as.character(organism)] ) )
-  terms <- toTable(godb[query_ids])
+  godb <- get( sub("\\.db","GO",organisms[as.character(organism)] ), envir=get(unlist( organisms[as.character(organism)])))
+  terms <- AnnotationDbi::toTable(godb[query_ids])
   names(terms) <- c('gene_id','go_id','Evidence','Ontology')
   if (as.character(organism) == '4932') {
     names(terms) <- c('systematic_name','go_id','Evidence','Ontology')
@@ -760,9 +817,8 @@ getGOTerms <- function(organism,uniprots) {
   } else {
     terms <- merge( terms, data.frame(gene_id=query_ids,uniprot=tolower(names(query_ids))), by='gene_id')
   }
-  library('GO.db')
   if (dim(terms)[1] > 0) {
-    go_terms <- (select(GO.db, terms$go_id,"TERM"))
+    go_terms <- (select(GO.db::GO.db, terms$go_id,"TERM"))
     names(go_terms) <- c('go_id','term')
     terms <- merge( terms, go_terms, by='go_id')
     terms <- uniqueframe(terms)
@@ -771,11 +827,12 @@ getGOTerms <- function(organism,uniprots) {
   return (terms)
 }
 
+#' @importFrom AnnotationDbi toTable
+#' @export
 GO_parents <- function(node = "GO:0008150", ontology = "BP") {
-    library('GO.db')
-    if (ontology == "BP") GOPARENTS <- GOBPPARENTS
-    if (ontology == "CC") GOPARENTS <- GOCCPARENTS
-    if (ontology == "MF") GOPARENTS <- GOMFPARENTS
+    if (ontology == "BP") GOPARENTS <- GO.db::GOBPPARENTS
+    if (ontology == "CC") GOPARENTS <- GO.db::GOCCPARENTS
+    if (ontology == "MF") GOPARENTS <- GO.db::GOMFPARENTS
     kids <- node
 
     # initialize output
@@ -784,7 +841,7 @@ GO_parents <- function(node = "GO:0008150", ontology = "BP") {
     while (any(!is.na(kids))) {
         # Get the unique children of the parents (that aren't NA)
         #children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
-        parents <- unique(unlist(toTable(GOPARENTS[kids[!is.na(kids)]])[2]))
+        parents <- unique(unlist(AnnotationDbi::toTable(GOPARENTS[kids[!is.na(kids)]])[2]))
         # append chldren to beginning of `out`
         # unique will keep the first instance of a duplicate
         # (i.e. the most recent child is kept)
@@ -799,12 +856,12 @@ GO_parents <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
-
+#' @importFrom AnnotationDbi toTable
+#' @export
 GO_children <- function(node = "GO:0008150", ontology = "BP") {
-    library('GO.db')
-    if (ontology == "BP") GOCHILDREN <- GOBPCHILDREN
-    if (ontology == "CC") GOCHILDREN <- GOCCCHILDREN
-    if (ontology == "MF") GOCHILDREN <- GOMFCHILDREN
+    if (ontology == "BP") GOCHILDREN <- GO.db::GOBPCHILDREN
+    if (ontology == "CC") GOCHILDREN <- GO.db::GOCCCHILDREN
+    if (ontology == "MF") GOCHILDREN <- GO.db::GOMFCHILDREN
     parents <- node
 
     # initialize output
@@ -813,7 +870,7 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
     while (any(!is.na(parents))) {
         # Get the unique children of the parents (that aren't NA)
         #children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
-        children <- unique(unlist(toTable(GOCHILDREN[parents[!is.na(parents)]])[1]))
+        children <- unique(unlist(AnnotationDbi::toTable(GOCHILDREN[parents[!is.na(parents)]])[1]))
 
         # append chldren to beginning of `out`
         # unique will keep the first instance of a duplicate
@@ -826,35 +883,46 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
+getBiocLiteLib <- function(dbname) {
+  if ( ! library(dbname,character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+    if ( gator.biocLite.stdlib) {
+      biocLite(dbname)
+      return
+    }
+  }
+
+  if ( ! suppressMessages(library(dbname,lib.loc=c(gator.cache),character.only=TRUE,logical.return=TRUE,quietly=TRUE)))  {
+    if (! gator.biocLite.stdlib) {
+      biocLite(dbname,lib=gator.cache)
+      return
+    }
+  }
+
+}
+
+#' @importFrom AnnotationDbi toTable
+#' @export
 getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
-  if ( ! library("GO.db",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite("GO.db")
-  }
-  if ( ! library("GOstats",character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite("GOstats")
-  }
+  getBiocLiteLib("GO.db")
+  getBiocLiteLib("GOstats")
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
-  if ( ! library(dbname,lib.loc=c(basepath),character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
-    biocLite(dbname,lib=basepath)
-  }
-  library(dbname,character.only=TRUE,lib.loc=c(basepath))
+  getBiocLiteLib(dbname)
+  library(dbname,character.only=TRUE)
   if (length(query_ids) < 1 & length(uniprots) > 0) {
     query_ids <- getEntrezIds(organism,uniprots)
   }
   if (as.character(organism) == '4932' & length(query_ids) > 0) {
     entrez_ids <- query_ids
-    entrez_mapping <- toTable(revmap(org.Sc.sgdENTREZID)[query_ids])
+    entrez_mapping <- AnnotationDbi::toTable(revmap(org.Sc.sgdENTREZID)[query_ids])
     query_ids <- unlist(entrez_mapping[1])
   }
 
   if (length(universe) < 1) {
-    universe <- as.list( mappedkeys(get( sub("\\.db","GO",organisms[as.character(organism)] ) )) )
+    universe <- as.list( mappedkeys(get( sub("\\.db","GO",dbname ),asNamespace(dbname) )) )
   } else {
     universe <- getEntrezIds(organism,universe)
   }
-  library('GO.db')
   library('GOstats')
   if (is.na(supplemental.terms)) {
   params <- new('GOHyperGParams',
@@ -867,10 +935,8 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
               annotation=as.character(organisms[as.character(organism)])
              )
   } else {
-    library("GOstats")
     library("GSEABase")
-    library("AnnotationDbi")
-    super_terms = subset( unique(rbind ( as.data.frame(toTable( get( sub("\\.db","GO",organisms[as.character(organism)] ) )  )), supplemental.terms)), Ontology==ontology)
+    super_terms = subset( unique(rbind ( as.data.frame(AnnotationDbi::toTable( get( sub("\\.db","GO", dbname),asNamespace(dbname) )  )), supplemental.terms)), Ontology==ontology)
     frame=GOFrame(data.frame(super_terms$go_id, super_terms$Evidence, super_terms$gene_id),organism=as.character(organism))
     allFrame=GOAllFrame(frame)
     gsc <- GeneSetCollection(allFrame, setType = GOCollection())
@@ -882,21 +948,30 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   return (hgOver)
 }
 
+#' Get up to top level GO terms
+#' @importFrom data.table rbindlist
+#' @importFrom AnnotationDbi Term
+#' @export
 tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829'),ontology='CC') {
   all_terms <- getGOTerms(organism,uniprot)
   go_ids <- sapply( wanted, function(x) { GO_children(x,ontology) }, USE.NAMES=T,simplify=F )
-  rbindlist(sapply(names(go_ids),function(x) { expand.grid(go_id=x,term=Term(x),uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot)) },simplify=F))
+  data.table::rbindlist(sapply(names(go_ids),function(x) { expand.grid(go_id=x,term=AnnotationDbi::Term(x),uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot)) },simplify=F))
 }
 
+#' @importFrom plyr ddply
+#' @importFrom plyr .
 addSiteColumn <- function(dataframe) {
-  dataset <- ddply(dataframe,.(uniprot),function(df) { vals <- c(1:(dim(df)[1])); df$site <- vals; return (df); })
+  dataset <- plyr::ddply(dataframe,plyr::.(uniprot),function(df) { vals <- c(1:(nrow(df))); df$site <- vals; return (df); })
   eval.parent(substitute(dataframe<-dataset))
 }
 
+#' @importFrom rjson fromJSON
+#' @importFrom httr GET
+#' @importFrom httr content
 getGatorSnapshotSubset <- function(fileId,accs) {
   url <- paste('http://localhost:3001/data/history/',fileId,'?accs=',paste(tolower(unlist(accs)),collapse=','),sep='')
   config <- list()
-  file_request <- GET(url,config=config)
+  file_request <- httr::GET(url,config=config)
   if (file_request$status_code == 304) {
     message("File data has not changed for ",origData$title)
     return ()
@@ -913,10 +988,11 @@ getGatorSnapshotSubset <- function(fileId,accs) {
   return (retval)
 }
 
+#' @importFrom rjson fromJSON
+#' @importFrom httr GET
+#' @importFrom httr content
 getGatorSnapshot <- function(gatorURL,fileId) {
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
-  dir.create(basepath,showWarnings=FALSE)
-  filename <- file.path(basepath,paste("gator-",fileId,".json",sep=''))
+  filename <- file.path(gator.cache,paste("gator-",fileId,".json",sep=''))
   etag <- NULL
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
@@ -933,7 +1009,7 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   }
   message("Connecting to server to check for new data for ",fileId)
 
-  file_request <- GET(url,config=config)
+  file_request <- httr::GET(url,config=config)
   if (file_request$status_code == 304) {
     message("File data has not changed for ",origData$title)
     return (origData)
@@ -963,11 +1039,13 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   return (retval)
 }
 
-
+#' @importFrom rjson fromJSON
+#' @importFrom httr GET
+#' @importFrom httr content
+#' @importFrom rjson toJSON
+#' @importFrom httr add_headers
 getGoogleFile <- function(fileId) {
-  basepath <- file.path(system.file(package="Rgator"),"cachedData")
-  dir.create(basepath,showWarnings=FALSE)
-  filename <- file.path(basepath,paste("gdrive-",fileId,".json",sep=''))
+  filename <- file.path(gator.cache,paste("gdrive-",fileId,".json",sep=''))
   etag <- NULL
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
@@ -977,12 +1055,12 @@ getGoogleFile <- function(fileId) {
   }
 
 	access_info <- doSignin()
-	gdrive_sig <- add_headers(Authorization = paste('Bearer', access_info$access_token))
+	gdrive_sig <- httr::add_headers(Authorization = paste('Bearer', access_info$access_token))
   url <- paste('https://www.googleapis.com/drive/v2/files/',fileId,sep='')
   if (!is.null(etag)) {
     gdrive_sig$httpheader['If-None-Match'] <- etag
   }
-	file_meta <- GET(url,config=gdrive_sig)
+	file_meta <- httr::GET(url,config=gdrive_sig)
   if (file_meta$status_code == 304) {
     message("File data has not changed for ",origData$title)
     return (origData)
@@ -992,22 +1070,24 @@ getGoogleFile <- function(fileId) {
     return ()
   }
   message("Retrieving data from Google for ",httr::content(file_meta)$title)
-	file_data <- GET(httr::content(file_meta)$downloadUrl,gdrive_sig)
+	file_data <- httr::GET(httr::content(file_meta)$downloadUrl,gdrive_sig)
   retval <- rjson::fromJSON(httr::content(file_data,"text"))
   retval$etag <- httr::content(file_meta)$etag
   retval$title <- httr::content(file_meta)$title
 
   fileConn<-file(filename)
-  writeLines(toJSON(retval), fileConn)
+  writeLines(rjson::toJSON(retval), fileConn)
   close(fileConn)
 	return (retval)
 }
 
 # Refresh OAuth 2.0 access token.
 #
+#' @importFrom httr POST
+#' @importFrom httr content
 oauth2.0_refresh <- function(endpoint, app, refresh_token, type = NULL) {
   # Use refresh_token to get a new (temporary) access token
-  req <- POST(
+  req <- httr::POST(
     url = endpoint$access,
     multipart = FALSE,
     body = list(
