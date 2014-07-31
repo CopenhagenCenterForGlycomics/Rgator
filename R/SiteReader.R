@@ -218,7 +218,9 @@ downloadDomains <- function(organism=c('9060')) {
 }
 
 #' @importFrom plyr ldply
+#' @importFrom plyr llply
 #' @importFrom data.table rbindlist
+#' @importFrom data.table setnames
 downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   message("Downloading ",set)
   if (length(grep("gatorURL",config[['type']])) > 0) {
@@ -288,7 +290,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   if (!is.null(data$defaults$rKeys) && data$defaults$rKeys == c('base64')) {
     all_prots <- names(data$data)
     names(all_prots) <- all_prots
-    frame <- llply(all_prots,.fun=function(uprot) {
+    frame <- plyr::llply(all_prots,.fun=function(uprot) {
       if (nchar(data$data[[uprot]]) > 0) {
         decodeBase64(data$data[[uprot]])
       }
@@ -299,7 +301,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     return (data.frame())
   } else if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
-    frame <- data.table::rbindlist(llply(all_prots,.fun=function(uprot) {
+    frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
       frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
 
       # We should get a data frame out from the jsonParser - attach the uniprot id as
@@ -313,7 +315,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     # ends up as the first column for consistency
     wanted_cols <- names(frame)
     frame <- subset(frame,select=c('uniprot',wanted_cols[!wanted_cols == 'uniprot']))
-    setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
+    data.table::setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
@@ -359,6 +361,7 @@ decodeBase64 <- function(base64) {
 }
 
 #' @importFrom rjson fromJSON
+#' @importFrom plyr llply
 testParseBJson <- function(filename) {
   etag <- NULL
   if (file.exists(filename)) {
@@ -370,7 +373,7 @@ testParseBJson <- function(filename) {
   }
   all_prots <- names(origData$data)
   names(all_prots) <- all_prots
-  frame <- llply(all_prots,.fun=function(uprot) {
+  frame <- plyr::llply(all_prots,.fun=function(uprot) {
     if (nchar(origData$data[[uprot]]) > 0) {
       decodeBase64(origData$data[[uprot]])
     }
@@ -381,6 +384,8 @@ testParseBJson <- function(filename) {
 
 #' @importFrom rjson fromJSON
 #' @importFrom data.table rbindlist
+#' @importFrom data.table setnames
+#' @importFrom plyr llply
 testParseJson <- function(filename) {
   etag <- NULL
   if (file.exists(filename)) {
@@ -391,7 +396,7 @@ testParseJson <- function(filename) {
     etag <- origData$etag
   }
   all_prots <- names(origData$data)
-  frame <- data.table::rbindlist(llply(all_prots,.fun=function(uprot) {
+  frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
     frm <- jsonParser(origData$data[[uprot]],origData$defaults$rKeys )
 
     # We should get a data frame out from the jsonParser - attach the uniprot id as
@@ -406,7 +411,7 @@ testParseJson <- function(filename) {
 
   wanted_cols <- names(frame)
   frame <- subset(frame,select=c('uniprot',wanted_cols[!wanted_cols == 'uniprot']))
-  setnames(frame, c('uniprot', origData$defaults$rKeys, rep('NA',dim(frame)[2] - (length(origData$defaults$rKeys)+1))))
+  data.table::setnames(frame, c('uniprot', origData$defaults$rKeys, rep('NA',dim(frame)[2] - (length(origData$defaults$rKeys)+1))))
 
   if (!is.null(origData$defaults$rNames)) {
     names(frame) <- c('uniprot',origData$defaults$rNames)
@@ -693,7 +698,8 @@ generateLogoPlot <- function(dataframe,windowcol,frequencies=c()) {
 #' @importFrom VennDiagram venn.diagram
 #' @export
 generateVennDiagram <- function(data=list(),title="Venn Diagram") {
-  require(VennDiagram)
+  require(grid)
+  require(gridExtra)
   return (grid::gTree(children = grid::gList(grid::grid.grabExpr(grid::grid.draw(VennDiagram::venn.diagram(data,filename=NULL,main=title)))), cl=c("arrange", "ggplot")))
 }
 

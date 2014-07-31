@@ -13,7 +13,8 @@ Imports:
   data.table,
   RCurl,
   rjson,
-  ggplot2,
+  grid,
+  gridExtra,
   VennDiagram,
   gridExtra,
   jsonlite
