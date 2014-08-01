@@ -5,10 +5,25 @@ getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
 
 #' Get the GO terms associated with the given UniProt ids
 #'
+#' @importFrom data.table rbindlist
+#' @importFrom AnnotationDbi Term
+#' @export
+getGOTerms <- function(organism,uniprots,wanted=c(),ontology='BP') {
+  all_terms <- retrieveGOTerms(organism,uniprots)
+  if (length(wanted) > 0 && ontology %in% c('CC','BP','MF')) {
+    go_ids <- sapply( wanted, function(x) { GO_children(x,ontology) }, USE.NAMES=T,simplify=F )
+    return ( data.table::rbindlist(sapply(names(go_ids),function(x) {
+      expand.grid(go_id=x,term=AnnotationDbi::Term(x),
+                  uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot))
+    },simplify=F)) )
+  } else {
+    return(all_terms)
+  }
+}
+
 #' @importFrom GO.db GO.db
 #' @importFrom AnnotationDbi toTable
-#' @export
-getGOTerms <- function(organism,uniprots) {
+retrieveGOTerms <- function(organism,uniprots) {
   getBiocLiteLib('GO.db')
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   query_ids <- getEntrezIds(organism,uniprots)
@@ -39,9 +54,17 @@ getGOTerms <- function(organism,uniprots) {
   return (terms)
 }
 
-#' @importFrom AnnotationDbi toTable
+#' @rdname Rgator-deprecated
 #' @export
 GO_parents <- function(node = "GO:0008150", ontology = "BP") {
+  .Deprecated('getGOParents',package='Rgator')
+  getGOParents(node,ontology)
+}
+
+
+#' @importFrom AnnotationDbi toTable
+#' @export
+getGOParents <- function(node = "GO:0008150", ontology = "BP") {
     if (ontology == "BP") GOPARENTS <- GO.db::GOBPPARENTS
     if (ontology == "CC") GOPARENTS <- GO.db::GOCCPARENTS
     if (ontology == "MF") GOPARENTS <- GO.db::GOMFPARENTS
@@ -68,9 +91,16 @@ GO_parents <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
-#' @importFrom AnnotationDbi toTable
+#' @rdname Rgator-deprecated
 #' @export
 GO_children <- function(node = "GO:0008150", ontology = "BP") {
+  .Deprecated('getGOChildren',package='Rgator')
+  getGOChildren(node,ontology)
+}
+
+#' @importFrom AnnotationDbi toTable
+#' @export
+getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
     if (ontology == "BP") GOCHILDREN <- GO.db::GOBPCHILDREN
     if (ontology == "CC") GOCHILDREN <- GO.db::GOCCCHILDREN
     if (ontology == "MF") GOCHILDREN <- GO.db::GOMFCHILDREN
@@ -101,6 +131,7 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
 getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
   getBiocLiteLib("GO.db")
   getBiocLiteLib("GOstats")
+  getBiocLiteLib("GSEABase")
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
@@ -144,12 +175,9 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   return (hgOver)
 }
 
-#' Get up to top level GO terms
-#' @importFrom data.table rbindlist
-#' @importFrom AnnotationDbi Term
+#' @rdname Rgator-deprecated
 #' @export
 tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829'),ontology='CC') {
-  all_terms <- getGOTerms(organism,uniprot)
-  go_ids <- sapply( wanted, function(x) { GO_children(x,ontology) }, USE.NAMES=T,simplify=F )
-  data.table::rbindlist(sapply(names(go_ids),function(x) { expand.grid(go_id=x,term=AnnotationDbi::Term(x),uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot)) },simplify=F))
+  .Deprecated('getGOTerms',package='Rgator')
+  getGOTerms(organism,uniprot,wanted,ontology)
 }

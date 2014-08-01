@@ -15,10 +15,17 @@ getCddNames <- function(cddids) {
   merge(data.frame(dom=cddids),cddid_all,by='dom',all.x=T)
 }
 
+#' @rdname Rgator-deprecated
+#' @export
+getDomainSets <- function( inputsites, sitecol, domaindata,  max_dom_proportion=0.81, stem_distance=100  ) {
+  .Deprecated('calculateDomainSets',package='Rgator')
+  calculateDomainSets(inputsites, sitecol, domaindata,  max_dom_proportion, stem_distance)
+}
+
 #' @importFrom plyr .
 #' @importFrom plyr ddply
 #' @export
-getDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
+calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
   message("Retrieving Uniprot sequences")
   seqdat <- getUniprotSequences(unique(inputsites$uniprot))
   message("Retrieved sequences")
