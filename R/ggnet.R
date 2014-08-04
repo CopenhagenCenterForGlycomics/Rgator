@@ -1,4 +1,5 @@
 #' ggnet - Plot a network with ggplot2
+#' modified from https://github.com/briatte/ggnet
 #' 
 #' Function for making a network plot from an object of class \code{network} or \code{igraph}, using ggplot2.
 #' 
