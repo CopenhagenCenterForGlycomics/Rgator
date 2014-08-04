@@ -1,5 +1,6 @@
-
-graphite.reactome <- function(organism=9606,max_pathway_size=30,...) {
+#' @export
+#' @importFrom graphite reactome,biocarta,kegg,nci,spike,humancyc,panther
+findCommonPathways <- function(organism=9606,max_pathway_size=30,...) {
   getBiocLiteLib('graphite')
   #require(graphite)
   genesets <- list(...)
@@ -9,6 +10,9 @@ graphite.reactome <- function(organism=9606,max_pathway_size=30,...) {
     list$entrezKey <- paste('EntrezGene:',(list$geneid),sep='')
     list
   },USE.NAMES=T,simplify=F)
+  for (name in names(path.list)) {
+    attributes(path.list[[name]])$listname <- name
+  }
   path_results <- rbindlist( lapply( c('reactome', 'biocarta', 'kegg','nci', 'spike', 'humancyc','panther' ), function(db) {
     res <- ldply(get(db,getNamespace('graphite')),function(pw) {
       my.path.list <- path.list
@@ -18,20 +22,29 @@ graphite.reactome <- function(organism=9606,max_pathway_size=30,...) {
       }
       if (length(nodes(pw) <= max_pathway_size)) {
         Reduce(function(left,right) {
-          my.path.list[[left]]$wantedkey <- my.path.list[[left]][[ keyname ]]
-          my.path.list[[right]]$wantedkey <- my.path.list[[right]][[ keyname ]]
-
-          left_nodes <- subset( my.path.list[[left]], wantedkey %in% nodes(pw))
-          right_nodes <- subset( my.path.list[[right]], wantedkey %in% nodes(pw))
-          my.path.list[[left]] <- merge(left_nodes,right_nodes,by='wantedkey',allow.cartesian=T,suffixes=c(paste('.',left,sep=''),paste('.',right,sep='')))
-          my.path.list[[left]]$wantedkey <- NULL
-          my.path.list[[left]]$db <- rep(db,nrow(my.path.list[[left]]))
-          my.path.list[[left]] <- my.path.list[[left]]
-        }, names(my.path.list) )
+          if (nrow(left) < 1) {
+            return (left)
+          }
+          left$wantedkey <- left[[ keyname ]]
+          right$wantedkey <- right[[ keyname ]]
+          left_nodes <- subset( left, wantedkey %in% nodes(pw))
+          right_nodes <- subset( right, wantedkey %in% nodes(pw))
+          if (is.null(attributes(left)$listname) && nrow(right_nodes) > 0) {
+            names(right_nodes) <- c(sapply( c('geneid','uniprot','genename','uprotKey','entrezKey'), function(x) { paste(x,attributes(right)$listname,sep='.')}),'wantedkey')
+          }
+          left <- merge(left_nodes,right_nodes,by='wantedkey',allow.cartesian=T,suffixes=c(paste('.',attributes(left)$listname,sep=''),paste('.',attributes(right)$listname,sep='')))
+          if (nrow(left) > 0) {
+            left[[keyname]] <- left$wantedkey
+          }
+          left$wantedkey <- NULL
+          left$db <- rep(db,nrow(left))
+          attributes(left)$listname <- NULL
+          left
+        }, my.path.list )
       }
     })
     return (res)
   }  ))
   names(path_results)[1] <- 'pathway'
-  subset( path_results,select=which(! grepl("Key\\.",names(path_results))) )
+  subset( path_results,select=which(! grepl("(uprot|entrez)Key",names(path_results)) ) )
 }
