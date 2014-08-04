@@ -1,6 +1,31 @@
+get_graphite_db <- function(db) {
+  if (db == 'reactome') {
+    return( graphite::reactome )
+  }
+  if (db == 'biocarta') {
+    return( graphite::biocarta )
+  }
+  if (db == 'kegg') {
+    return( graphite::kegg )
+  }
+  if (db == 'nci') {
+    return( graphite::nci )
+  }
+  if (db == 'spike') {
+    return( graphite::spike )
+  }
+  if (db == 'humancyc') {
+    return( graphite::humancyc )
+  }
+  if (db == 'panther') {
+    return( graphite::panther )
+  }
+
+}
+
 #' @export
-#' @importFrom graphite reactome,biocarta,kegg,nci,spike,humancyc,panther
-findCommonPathways <- function(organism=9606,max_pathway_size=30,...) {
+#' @importFrom graphite reactome,biocarta,kegg,nci,spike,humancyc,panther,nodes
+findCommonPathways.graphite <- function(organism=9606,max_pathway_size=30,...) {
   getBiocLiteLib('graphite')
   #require(graphite)
   genesets <- list(...)
@@ -14,21 +39,21 @@ findCommonPathways <- function(organism=9606,max_pathway_size=30,...) {
     attributes(path.list[[name]])$listname <- name
   }
   path_results <- rbindlist( lapply( c('reactome', 'biocarta', 'kegg','nci', 'spike', 'humancyc','panther' ), function(db) {
-    res <- ldply(get(db,getNamespace('graphite')),function(pw) {
+    res <- ldply(get_graphite_db(db),function(pw) {
       my.path.list <- path.list
       keyname <- "uprotKey"
-      if (grepl("Entrez", nodes(pw)[1])) {
+      if (grepl("Entrez", graphite::nodes(pw)[1])) {
         keyname <- 'entrezKey'
       }
-      if (length(nodes(pw) <= max_pathway_size)) {
+      if (length(graphite::nodes(pw) <= max_pathway_size)) {
         Reduce(function(left,right) {
           if (nrow(left) < 1) {
             return (left)
           }
           left$wantedkey <- left[[ keyname ]]
           right$wantedkey <- right[[ keyname ]]
-          left_nodes <- subset( left, wantedkey %in% nodes(pw))
-          right_nodes <- subset( right, wantedkey %in% nodes(pw))
+          left_nodes <- subset( left, wantedkey %in% graphite::nodes(pw))
+          right_nodes <- subset( right, wantedkey %in% graphite::nodes(pw))
           if (is.null(attributes(left)$listname) && nrow(right_nodes) > 0) {
             names(right_nodes) <- c(sapply( c('geneid','uniprot','genename','uprotKey','entrezKey'), function(x) { paste(x,attributes(right)$listname,sep='.')}),'wantedkey')
           }
