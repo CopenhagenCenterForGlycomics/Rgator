@@ -30,8 +30,14 @@ getGeneNames <- function(organism,ids) {
   if (as.character(organism) == '4932') {
     wanted_cols <- c('UNIPROT','GENENAME')
   }
-  mapping <- select(get(dbname,asNamespace(dbname)), keys=c(toupper(ids)), columns=wanted_cols, keytype="UNIPROT")
-  names(mapping) <- c('uniprot','symbol')
+  ids <- toupper(ids)
+  mapped_ids <- intersect( ids , AnnotationDbi::keys( get(dbname,asNamespace(dbname)), 'UNIPROT' ) )
+  mapping <- NULL
+  if (length(mapped_ids) > 0) {
+    mapping <- AnnotationDbi::select(get(dbname,asNamespace(dbname)), keys=mapped_ids, columns=wanted_cols, keytype="UNIPROT")
+    names(mapping) <- c('uniprot','symbol')
+  }
+  mapping <- rbind(mapping, data.frame(uniprot=ids[ ! ids %in% mapped_ids ],symbol=ids[ ! ids %in% mapped_ids  ]))
   return (mapping)
 }
 
