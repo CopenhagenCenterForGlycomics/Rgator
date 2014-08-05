@@ -163,26 +163,26 @@ make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,scal
   })
 }
 
+#' @importFrom scales rescale
 makeScale <- function(name,in.cols,limits,fn) {
   vals <- c(min(limits),-0.00001,-0.00001,0,0.00001,0.00001,max(limits))
   breaks <- min(limits):max(limits)
   cols <- c(in.cols$negative[1],in.cols$negative[2],in.cols$negative[2],in.cols$middle,in.cols$positive[1],in.cols$positive[1],in.cols$positive[2])
-  return (list(palette=fn(colours=cols,breaks=breaks,limits=limits,values=vals)$palette, legend=fn(name=name,colours=cols,limits=limits,breaks=breaks,values=rescale(vals)  )))
+  return (list(palette=fn(colours=cols,breaks=breaks,limits=limits,values=vals)$palette, legend=fn(name=name,colours=cols,limits=limits,breaks=breaks,values=scales::rescale(vals)  )))
 }
 
-overlayExpression.protein <- function(organism=9606,plot,in_cords,expression,uniprot.symbols=F,...) {
-  cords <- in_cords
-  newplot <- plot
+overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symbols=F,...) {
+  cords <- plot$cords
+  newplot <- plot$plot
   expression$value <- as.numeric(expression$value)
   expression <- subset(expression,!is.na(value))
   expression$idx <- row.names(expression)
   expression$size <- 1
   scale_limits <- list(...)
-  scales <- list(scale1=makeScale( names(scale_limits)[1],list(negative=c('#FC7F23','#FCBE75'),middle='#ffffff',positive=c('#A7CEE2','#2579B2')), scale_limits[[1]], scales::scale_color_gradientn ),
-                 scale2=makeScale( names(scale_limits)[2],list(negative=c('#399F34','#B3DE8D'),middle='#99ff99',positive=c('#CAB2D5','#6A4098')), scale_limits[[2]], scales::scale_fill_gradientn )
+  scales <- list(scale1=makeScale( names(scale_limits)[1],list(negative=c('#FC7F23','#FCBE75'),middle='#ffffff',positive=c('#A7CEE2','#2579B2')), scale_limits[[1]], ggplot2::scale_color_gradientn ),
+                 scale2=makeScale( names(scale_limits)[2],list(negative=c('#399F34','#B3DE8D'),middle='#99ff99',positive=c('#CAB2D5','#6A4098')), scale_limits[[2]], ggplot2::scale_fill_gradientn )
                  )
   names(scales) <- names(scale_limits)
-
   grobs <- apply(subset(cords,uniprot != ''),1,function(rowdata) {
     all_uniprots <- gsub("-.*","",unlist(strsplit(rowdata['uniprot']," ")))
     return_data <- c()

@@ -165,12 +165,13 @@ ggnet <- function(net, # an object of class network
                                length = unit(0.5*arrow.size, "cm"))) 
   # plot vertices (links)
   if (nrow(subset(edges, !is.na(type))) > 0) {
-      pnet <- pnet + geom_segment(aes(x = X1, y = Y1, xend = X2, yend = Y2,colour=type), 
+      pnet <- pnet + geom_segment(aes(x = X1, y = Y1, xend = X2, yend = Y2), 
                  data = subset(edges, !is.na(type)), 
                  size = 1, 
+                 color = sapply(subset(edges, !is.na(type))$type, function(typ) { if ( typ == 'ACTIVATION' ) { return("green") } else { return("red") } }),
                  alpha = inherit(segment.alpha),
                  arrow = arrow(type = "closed", 
-                               length = unit(arrow.size, "cm"))) + scale_color_manual(values=c("green","red"))
+                               length = unit(arrow.size, "cm")))
   }
   # null weighting
   
