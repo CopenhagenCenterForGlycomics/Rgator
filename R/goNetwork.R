@@ -43,7 +43,7 @@ make_wedges.go <- function(idx,total,start_radius,width,c_x,c_y,values,scales) {
     } else {
       color <- c("white","black")
     }
-    geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',])),aes(x=x,y=y),fill=color[1],color=color[2])
+    geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=c(value,value)),aes(x=x,y=y,fill=value,color=value))
   })
 }
 
@@ -81,6 +81,7 @@ overlayGOValues <- function(plot,goframe,label.terms=F,...) {
       minlength <- 0
     }
     names(scales) <- c( head(unique(goframe$name),length(scales)), rep(NA, minlength) )
+    scales <- scales[ which(! is.na(names(scales))) ]
   }
 
   grobs <- apply(subset(coords,uniprot != ''),1,function(rowdata) {
@@ -98,11 +99,11 @@ overlayGOValues <- function(plot,goframe,label.terms=F,...) {
   for(grob in grobs) {
     newplot <- newplot + grob
   }
+  newplot <- newplot + scale_color_manual(values=sapply(scales,function(x) { x[2] },USE.NAMES=T)) + scale_fill_manual(values=sapply(scales,function(x) { x[1] },USE.NAMES=T))
   if (label.terms) {
     mapping <- as.data.frame(AnnotationDbi::toTable(GO.db::GOTERM[coords$uniprot]))
     coords$terms <- plyr::mapvalues(coords$uniprot,from=mapping$go_id,to=mapping$Term,warn_missing=F)
     newplot <- newplot + geom_text(data=subset(coords,uniprot %in% goframe$GOBPID),aes(x=X1,y=X2,label=terms),size=2,hjust=0 )
   }
-  newplot <- newplot + scale_fill_identity()
   return(newplot)
 }
