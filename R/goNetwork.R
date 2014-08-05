@@ -1,6 +1,6 @@
-#' @importFrom GO.db GOBPPARENTS GOCCPARENTS GOMFPARENTS
-#' @importFrom AnnotationDbi toTable
-#' @importFrom network set.edge.attribute set.vertex.attribute network.vertex.names
+# @importFrom GO.db GOBPPARENTS GOCCPARENTS GOMFPARENTS
+# @importFrom AnnotationDbi toTable
+# @importFrom network set.edge.attribute set.vertex.attribute network.vertex.names
 goNetwork <- function(goids) {
   BP <- subset(AnnotationDbi::toTable(GO.db::GOBPPARENTS), RelationshipType %in% c('is_a','part_of'))
   CC <- subset(AnnotationDbi::toTable(GO.db::GOCCPARENTS), RelationshipType %in% c('is_a','part_of'))

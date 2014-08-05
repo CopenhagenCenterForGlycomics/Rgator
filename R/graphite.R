@@ -24,7 +24,7 @@ get_graphite_db <- function(db) {
 }
 
 #' @export
-#' @importFrom graphite reactome biocarta kegg nci spike humancyc panther nodes
+# @importFrom graphite nodes
 findCommonPathways.graphite <- function(organism=9606,max_pathway_size=30,...) {
   getBiocLiteLib('graphite')
   #require(graphite)

@@ -1,6 +1,6 @@
 # Convert BioPax files to Edges for making a network diagram
 
-#' @importFrom rBiopaxParser readBiopax
+# @importFrom rBiopaxParser readBiopax
 #' @export
 getReactomePathway <- function(pathwayURL) {
   td = tempdir()
@@ -15,7 +15,7 @@ striphash <- function(str)
   gsub("#","",str)
 }
 
-#' @importFrom rBiopaxParser getReferencedIDs listInstances
+# @importFrom rBiopaxParser getReferencedIDs listInstances
 interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDonly = FALSE,
                                     biopaxlevel = 3)
 {
@@ -62,9 +62,9 @@ interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDo
 
 #' Modified from pathway2regulatoryGraph in rBiopaxReader
 #
-#' @importFrom rBiopaxParser listPathwayComponents listComplexComponents selectInstances getSubClasses getInstanceClass getXrefAnnotations
-#' @importFrom data.table setkeyv rbindlist
-#' @importFrom network network set.edge.attribute set.vertex.attribute network.vertex.names
+# @importFrom rBiopaxParser listPathwayComponents listComplexComponents selectInstances getSubClasses getInstanceClass getXrefAnnotations
+# @importFrom data.table setkeyv rbindlist
+# @importFrom network network set.edge.attribute set.vertex.attribute network.vertex.names
 pathway2network <- function (biopax, pwid,verbose=F) {
   biopaxlevel = biopax$biopaxlevel
   pwid = unique(striphash(pwid))
@@ -163,7 +163,7 @@ make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,scal
   })
 }
 
-#' @importFrom scales rescale
+# @importFrom scales rescale
 makeScale <- function(name,in.cols,limits,fn) {
   vals <- c(min(limits),-0.00001,-0.00001,0,0.00001,0.00001,max(limits))
   breaks <- min(limits):max(limits)

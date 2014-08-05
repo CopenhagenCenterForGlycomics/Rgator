@@ -1,5 +1,5 @@
 
-#' @importFrom colbycol cbc.read.table
+# @importFrom colbycol cbc.read.table
 bgi_readBasicExpressionData <- function(filename='all.gene.rpkm.xls') {
   file <- filename
   if (grepl('gz$',filename)) {

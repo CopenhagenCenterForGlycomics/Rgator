@@ -5,8 +5,8 @@ getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
 
 #' Get the GO terms associated with the given UniProt ids
 #'
-#' @importFrom data.table rbindlist
-#' @importFrom AnnotationDbi Term
+# @importFrom data.table rbindlist
+# @importFrom AnnotationDbi Term
 #' @export
 getGOTerms <- function(organism,uniprots,wanted=c(),ontology='BP') {
   all_terms <- retrieveGOTerms(organism,uniprots)
@@ -21,8 +21,8 @@ getGOTerms <- function(organism,uniprots,wanted=c(),ontology='BP') {
   }
 }
 
-#' @importFrom GO.db GO.db
-#' @importFrom AnnotationDbi toTable
+# @importFrom GO.db GO.db
+# @importFrom AnnotationDbi toTable
 retrieveGOTerms <- function(organism,uniprots) {
   getBiocLiteLib('GO.db')
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
@@ -62,7 +62,7 @@ GO_parents <- function(node = "GO:0008150", ontology = "BP") {
 }
 
 
-#' @importFrom AnnotationDbi toTable
+# @importFrom AnnotationDbi toTable
 #' @export
 getGOParents <- function(node = "GO:0008150", ontology = "BP") {
     if (ontology == "BP") GOPARENTS <- GO.db::GOBPPARENTS
@@ -98,7 +98,7 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
   getGOChildren(node,ontology)
 }
 
-#' @importFrom AnnotationDbi toTable
+# @importFrom AnnotationDbi toTable
 #' @export
 getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
     if (ontology == "BP") GOCHILDREN <- GO.db::GOBPCHILDREN
@@ -125,7 +125,7 @@ getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
-#' @importFrom AnnotationDbi toTable
+# @importFrom AnnotationDbi toTable
 #' @export
 getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
   getBiocLiteLib("GO.db")

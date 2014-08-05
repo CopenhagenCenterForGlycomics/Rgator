@@ -1,8 +1,8 @@
-#' @importFrom grid gTree
-#' @importFrom grid gList
-#' @importFrom grid grid.grabExpr
-#' @importFrom grid grid.draw
-#' @importFrom VennDiagram venn.diagram
+# @importFrom grid gTree
+# @importFrom grid gList
+# @importFrom grid grid.grabExpr
+# @importFrom grid grid.draw
+# @importFrom VennDiagram venn.diagram
 #' @export
 generateVennDiagram <- function(data=list(),title="Venn Diagram") {
   require(grid)

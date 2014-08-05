@@ -1,5 +1,5 @@
-#' @importFrom httr GET
-#' @importFrom httr content
+# @importFrom httr GET
+# @importFrom httr content
 #' @export
 getUniprotIds <- function(taxonomy) {
   # We should add an option to get unreviewed ids here too
@@ -14,11 +14,11 @@ getUniprotIds <- function(taxonomy) {
   return (idlist)
 }
 
-#' @importFrom data.table rbindlist
-#' @importFrom httr POST
-#' @importFrom httr content
-#' @importFrom plyr ldply
-#' @importFrom data.table rbindlist
+# @importFrom data.table rbindlist
+# @importFrom httr POST
+# @importFrom httr content
+# @importFrom plyr ldply
+# @importFrom data.table rbindlist
 #' @export
 getUniprotSequences <- function(accs,wait=0) {
   if (length(accs) > 200) {

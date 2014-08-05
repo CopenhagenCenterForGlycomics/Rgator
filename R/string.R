@@ -1,8 +1,8 @@
-#' @importFrom STRINGdb STRINGdb
-#' @importFrom AnnotationDbi select
-#' @importFrom intergraph asDF
-#' @importFrom plyr mapvalues
-#' @importFrom network network set.edge.attribute set.vertex.attribute network.vertex.names
+# @importFrom STRINGdb STRINGdb
+# @importFrom AnnotationDbi select
+# @importFrom intergraph asDF
+# @importFrom plyr mapvalues
+# @importFrom network network set.edge.attribute set.vertex.attribute network.vertex.names
 getStringNetwork <- function(organism=9606,uniprots=c('q14118','P24043'),get.neighbours=F) {
   getBiocLiteLib('STRINGdb')
   string_db <- STRINGdb::STRINGdb$new(species=organism,version="9_05")

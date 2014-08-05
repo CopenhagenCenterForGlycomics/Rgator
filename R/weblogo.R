@@ -27,14 +27,14 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
 }
 
 
-#' @importFrom plyr laply
-#' @importFrom ggplot2 ggplot
-#' @importFrom ggplot2 geom_line
-#' @importFrom ggplot2 geom_text
-#' @importFrom ggplot2 theme
-#' @importFrom ggplot2 scale_x_continuous
-#' @importFrom ggplot2 coord_trans
-#' @importFrom ggplot2 theme_bw
+# @importFrom plyr laply
+# @importFrom ggplot2 ggplot
+# @importFrom ggplot2 geom_line
+# @importFrom ggplot2 geom_text
+# @importFrom ggplot2 theme
+# @importFrom ggplot2 scale_x_continuous
+# @importFrom ggplot2 coord_trans
+# @importFrom ggplot2 theme_bw
 berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
   bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / backFreq[[x]] })

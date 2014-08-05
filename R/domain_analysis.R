@@ -22,8 +22,8 @@ getDomainSets <- function( inputsites, sitecol, domaindata,  max_dom_proportion=
   calculateDomainSets(inputsites, sitecol, domaindata,  max_dom_proportion, stem_distance)
 }
 
-#' @importFrom plyr .
-#' @importFrom plyr ddply
+# @importFrom plyr .
+# @importFrom plyr ddply
 #' @export
 calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
   message("Retrieving Uniprot sequences")

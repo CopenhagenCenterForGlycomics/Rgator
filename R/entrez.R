@@ -1,6 +1,6 @@
 #' Get entrez gene identifiers for a set of UniProt ids
 #'
-#' @importFrom AnnotationDbi toTable
+# @importFrom AnnotationDbi toTable
 #' @export
 getEntrezIds <- function(organism,ids) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
@@ -44,7 +44,7 @@ getGeneNames <- function(organism,ids) {
 
 #' Convert entrez ids to a data frame of uniprot, genename and entrez id
 #'
-#' @importFrom AnnotationDbi select
+# @importFrom AnnotationDbi select
 #' @export
 convertEntrezIds <- function(organism,ids=c()) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')

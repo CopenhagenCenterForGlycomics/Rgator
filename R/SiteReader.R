@@ -25,9 +25,9 @@ if (! is.null(gator.cache)) {
 current_token <- NULL
 connection_key <- NULL
 
-#' @importFrom httr oauth_endpoint
-#' @importFrom httr oauth_app
-#' @importFrom httr oauth2.0_token
+# @importFrom httr oauth_endpoint
+# @importFrom httr oauth_app
+# @importFrom httr oauth2.0_token
 doSignin <- function() {
   if (!is.null(current_token)) {
     return((list(access_token=current_token)))
@@ -54,8 +54,8 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 	}
 }
 
-#' @importFrom rjson fromJSON
-#' @importFrom websockets websocket_write
+# @importFrom rjson fromJSON
+# @importFrom websockets websocket_write
 askForSignin <- function(WS) {
   websockets::websocket_write(rjson::toJSON(list(message="upgradeConnection",data=getOption("connection_key"))), WS)
 }
@@ -66,12 +66,12 @@ acceptToken <- function(json) {
   options(connection_key = json$data$connectionkey)
 }
 
-#' @importFrom websockets daemonize
-#' @importFrom websockets create_server
-#' @importFrom websockets websocket_write
-#' @importFrom websockets websocket_close
-#' @importFrom rjson fromJSON
-#' @importFrom websockets setCallback
+# @importFrom websockets daemonize
+# @importFrom websockets create_server
+# @importFrom websockets websocket_write
+# @importFrom websockets websocket_close
+# @importFrom rjson fromJSON
+# @importFrom websockets setCallback
 #' @export
 gatorConnector <- function() {
   server = websockets::create_server(port=8880)
@@ -118,7 +118,7 @@ gatorConnector <- function() {
   assign("stopConnector",stopConnector,envir=.GlobalEnv)
 }
 
-#' @importFrom rjson fromJSON
+# @importFrom rjson fromJSON
 #' @export
 syncDatasets <- function() {
   files <- list.files(pattern = "\\.domaintoolsession$")
@@ -140,7 +140,7 @@ syncDatasets <- function() {
 
 }
 
-#' @importFrom plyr ldply
+# @importFrom plyr ldply
 jsonParser <- function(data,keys) {
   currkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key))>0) { strsplit(key,".",fixed=TRUE)[[1]][1] } }))
   currkeys <- unlist(currkeys[!sapply(currkeys,is.null)])
@@ -217,10 +217,10 @@ downloadDomains <- function(organism=c('9060')) {
   downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
 }
 
-#' @importFrom plyr ldply
-#' @importFrom plyr llply
-#' @importFrom data.table rbindlist
-#' @importFrom data.table setnames
+# @importFrom plyr ldply
+# @importFrom plyr llply
+# @importFrom data.table rbindlist
+# @importFrom data.table setnames
 downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   message("Downloading ",set)
   if (length(grep("gatorURL",config[['type']])) > 0) {
@@ -354,14 +354,14 @@ writeParsedJson <- function(frame,title) {
   save(frame,file=filename)
 }
 
-#' @importFrom RCurl base64Decode
+# @importFrom RCurl base64Decode
 decodeBase64 <- function(base64) {
   decoded <- RCurl::base64Decode(base64,'raw');
   readBin( decoded, 'numeric', length(decoded)/4 ,4);
 }
 
-#' @importFrom rjson fromJSON
-#' @importFrom plyr llply
+# @importFrom rjson fromJSON
+# @importFrom plyr llply
 testParseBJson <- function(filename) {
   etag <- NULL
   if (file.exists(filename)) {
@@ -382,10 +382,10 @@ testParseBJson <- function(filename) {
   return (frame)
 }
 
-#' @importFrom rjson fromJSON
-#' @importFrom data.table rbindlist
-#' @importFrom data.table setnames
-#' @importFrom plyr llply
+# @importFrom rjson fromJSON
+# @importFrom data.table rbindlist
+# @importFrom data.table setnames
+# @importFrom plyr llply
 testParseJson <- function(filename) {
   etag <- NULL
   if (file.exists(filename)) {
@@ -460,16 +460,16 @@ getBiocLiteLib <- function(dbname) {
 
 
 
-#' @importFrom plyr ddply
-#' @importFrom plyr .
+# @importFrom plyr ddply
+# @importFrom plyr .
 addSiteColumn <- function(dataframe) {
   dataset <- plyr::ddply(dataframe,plyr::.(uniprot),function(df) { vals <- c(1:(nrow(df))); df$site <- vals; return (df); })
   eval.parent(substitute(dataframe<-dataset))
 }
 
-#' @importFrom rjson fromJSON
-#' @importFrom httr GET
-#' @importFrom httr content
+# @importFrom rjson fromJSON
+# @importFrom httr GET
+# @importFrom httr content
 getGatorSnapshotSubset <- function(fileId,accs) {
   url <- paste('http://localhost:3001/data/history/',fileId,'?accs=',paste(tolower(unlist(accs)),collapse=','),sep='')
   config <- list()
@@ -490,9 +490,9 @@ getGatorSnapshotSubset <- function(fileId,accs) {
   return (retval)
 }
 
-#' @importFrom rjson fromJSON
-#' @importFrom httr GET
-#' @importFrom httr content
+# @importFrom rjson fromJSON
+# @importFrom httr GET
+# @importFrom httr content
 getGatorSnapshot <- function(gatorURL,fileId) {
   filename <- file.path(gator.cache,paste("gator-",fileId,".json",sep=''))
   etag <- NULL
@@ -541,11 +541,11 @@ getGatorSnapshot <- function(gatorURL,fileId) {
   return (retval)
 }
 
-#' @importFrom rjson fromJSON
-#' @importFrom httr GET
-#' @importFrom httr content
-#' @importFrom rjson toJSON
-#' @importFrom httr add_headers
+# @importFrom rjson fromJSON
+# @importFrom httr GET
+# @importFrom httr content
+# @importFrom rjson toJSON
+# @importFrom httr add_headers
 getGoogleFile <- function(fileId) {
   filename <- file.path(gator.cache,paste("gdrive-",fileId,".json",sep=''))
   etag <- NULL
@@ -585,8 +585,8 @@ getGoogleFile <- function(fileId) {
 
 # Refresh OAuth 2.0 access token.
 #
-#' @importFrom httr POST
-#' @importFrom httr content
+# @importFrom httr POST
+# @importFrom httr content
 oauth2.0_refresh <- function(endpoint, app, refresh_token, type = NULL) {
   # Use refresh_token to get a new (temporary) access token
   req <- httr::POST(
