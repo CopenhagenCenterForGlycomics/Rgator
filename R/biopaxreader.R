@@ -15,7 +15,7 @@ striphash <- function(str)
   gsub("#","",str)
 }
 
-#' @importFrom rBiopaxParser getReferencedIDs, listInstances
+#' @importFrom rBiopaxParser getReferencedIDs listInstances
 interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDonly = FALSE,
                                     biopaxlevel = 3)
 {
@@ -62,9 +62,9 @@ interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDo
 
 #' Modified from pathway2regulatoryGraph in rBiopaxReader
 #
-#' @importFrom rBiopaxParser listPathwayComponents, listComplexComponents, selectInstances, getSubClasses, getInstanceClass, getXrefAnnotations
-#' @importFrom data.table setkeyv, rbindlist
-#' @importFrom network network, set.edge.attribute, set.vertex.attribute, network.vertex.names
+#' @importFrom rBiopaxParser listPathwayComponents listComplexComponents selectInstances getSubClasses getInstanceClass getXrefAnnotations
+#' @importFrom data.table setkeyv rbindlist
+#' @importFrom network network set.edge.attribute set.vertex.attribute network.vertex.names
 pathway2network <- function (biopax, pwid,verbose=F) {
   biopaxlevel = biopax$biopaxlevel
   pwid = unique(striphash(pwid))
