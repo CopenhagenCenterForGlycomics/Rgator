@@ -1,7 +1,16 @@
 # Convert BioPax files to Edges for making a network diagram
-
+#' Load a Reactome pathway from an URL or local file
+#'
+#'  @param  pathwayURL URL to retrieve pathway from (http:// or file://)
+#'  @return BioPax Parsed biopax file
+#'  @export
+#'  @examples
+#'  # Load from a local file
+#'  getReactomePathway("file://mypathway.biopax")
+#'  # Load from ReactomeDB
+#'  url <- 'http://www.reactome.org/ReactomeRESTfulAPI/RESTfulWS/biopaxExporter/Level3/535734'
+#'  getReactomePathway(url)
 # @importFrom rBiopaxParser readBiopax
-#' @export
 getReactomePathway <- function(pathwayURL) {
   td = tempdir()
   tf = tempfile(tmpdir=td,fileext='.biopax')
@@ -15,6 +24,9 @@ striphash <- function(str)
   gsub("#","",str)
 }
 
+#'  Split up interactions in a biopax pathway so that they are their own smaller
+#'  sub-networks. We split a single interaction into the left and right parts
+#'  with a new interaction entity that sits in between the left and the right
 # @importFrom rBiopaxParser getReferencedIDs listInstances
 interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDonly = FALSE,
                                     biopaxlevel = 3)
@@ -127,7 +139,16 @@ pathway2network <- function (biopax, pwid,verbose=F) {
   network::set.vertex.attribute(net,attrname='uniprot',value=lapply(sapply(network::network.vertex.names(net),get_proteins ),function(x) { paste(unique(x),collapse=' ') } ))
   net
 }
-
+#'  Draw a wedge at a given point
+#'  @param  idx     Index of segment around the circle
+#'  @param  total   Total number of segments aroudn the circle
+#'  @param  start_radius  Inner (starting) radius
+#'  @param  width   Width of segment
+#'  @param  c_x     X Center of circle that segment is placed around
+#'  @param  c_y     Y Center of circle that segment is placed around
+#'  @param  values  data.frame with two columns minimum : datasource and value
+#'  @param  scales  Color scales used to color the segments
+#'  @seealso \code{\link{makeScale}}
 make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,scales) {
   # Arguments:  Index around circle
   #             Total segments
