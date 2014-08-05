@@ -1,4 +1,4 @@
-
+#' @export
 findCommonPathways <- function(organism=9606,max_pathway_size=80,...) {
   rbind( findCommonPathways.reactome(organism,max_pathway_size,...), findCommonPathways.graphite(organism,max_pathway_size,...) )
 }
