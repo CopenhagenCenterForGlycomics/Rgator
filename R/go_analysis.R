@@ -125,7 +125,6 @@ getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
     return(out)
 }
 
-
 #' @importFrom AnnotationDbi toTable
 #' @export
 getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {

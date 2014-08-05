@@ -171,6 +171,8 @@ makeScale <- function(name,in.cols,limits,fn) {
   return (list(palette=fn(colours=cols,breaks=breaks,limits=limits,values=vals)$palette, legend=fn(name=name,colours=cols,limits=limits,breaks=breaks,values=scales::rescale(vals)  )))
 }
 
+#testing_expression <- data.frame(uniprot=c(rep('Q9UHC9',2),rep('O95477',2)),value=c(3,5,-3,0),datasource=c('rnaseq','ms','rnaseq','ms'))
+
 overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symbols=F,...) {
   cords <- plot$cords
   newplot <- plot$plot
