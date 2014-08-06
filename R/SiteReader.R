@@ -209,14 +209,6 @@ downloadOrthologies <- function() {
   assign('gator.orthology',rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
 }
 
-#' @export
-downloadDomains <- function(organism=c('9060')) {
-  if ("9060" %in% organism) {
-    downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
-  }
-  downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
-}
-
 # @importFrom plyr ldply
 # @importFrom plyr llply
 # @importFrom data.table rbindlist

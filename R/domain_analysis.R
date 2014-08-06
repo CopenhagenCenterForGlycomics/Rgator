@@ -63,6 +63,7 @@ downloadDomains <- function(organism=c('9060')) {
 #' be informative. To filter these domains, the \code{max_dom_proportion} parameter is used
 #' to filter the domain data so that they are not used in the classification process (\code{real} domains).
 #'
+#' \strong{Basic region classification}
 #' Sites that occur within the domain (\code{inside} domains) are chosen based on the site position
 #' being within the start and end positions for the domain, and are not within the predicted transmembrane
 #' region. All combinations of sites and domains are given.
@@ -77,17 +78,47 @@ downloadDomains <- function(organism=c('9060')) {
 #' located between two domains (imagine a linker domain), then there are domains both N- and C- terminal of the site.
 #' If the site, however, is located at the C-terminal, then it will only have a list of N- domains.
 #'
-#' Stem regions
+#' \strong{Stem regions}
+#' Type I stem regions (\code{stem.typei}) are single-pass TM proteins having a transmembrane region
+#' at the C-terminal of the protein. Sometimes conserved domains are defined on
+#' top of transmembrane regions, so to deal with this, Type I transmembrane
+#' regions are defined as regions where the closest (or next-closest) C-terminal
+#' domain to the site is a transmembrane region. Only sites lying within
+#' \code{stem_distance} amino acids are returned.
+#'
+#'
 #' Type II transmembrane proteins are defined as being single-pass TM proteins having a transmembrane region at the N-terminal
 #' of the protein. Given that transmembrane regions may be broken down into smaller transmembrane
 #' regions by the prediction algorithms, the definition of a Type II is given as a set of N-terminal
 #' transmembranes that overlap a signlap peptide prediction, or a single transmembrane region on a
 #' protein (without any signal peptide).
-#' Type II stem regions are defined as \code{between} sites that occur within \code{stem_distance} amino acids of the
+#'
+#' Type II stem regions (\code{stem.typeii})are defined as \code{between} sites that occur within \code{stem_distance} amino acids of the
 #' transmembrane region of the protein. All domains that are within \code{stem_distance} amino acids of the site,
 #' as well as the closest transmembrane region or signal peptide are returned.
 #'
+#' SIGNALP stem regions (\code{stem.signalp}) aren't strictly stem regions, but are defined as the
+#' region between the Signal peptide cleavage site and any domain. Although the
+#' signal peptide is usually cleaved, there are cases where the signal peptide
+#' does not get cleaved. They are defined in the same way as Type II stem regions,
+#' except there N-terminal transmembrane region is instead a signal peptide.
+#'
+#' \strong{Other region types}
+#' Interdomain regions (\code{interdomain}, also described as linker regions)
+#' contain sites that are part of the \code{between} set (i.e. between two domains)
+#' but do not fit into the categories of stem regions.
+#'
+#' N- or C-terminal regions (\code{norc}), contain sites that are outside, but
+#' do not fit into any of the other categories of site.
+#'
+#' @param   inputsites          Data frame with a uniprot column and a column containing sites
+#' @param   sitecol             Column to look for site data in
+#' @param   domaindata          Data frame containing all the domain data
+#' @param   max_dom_proportion  Maximum proportion of total protein length domain can take
+#' @param   stem_distance       Maximum distance from the transmembrane region before a region is no longer a stem.
+#' @return  named list of data.frames containing sites from each of the regions (\code{inside}, \code{outside}, \code{stem},\code{stem.typei},\code{stem.typeii},\code{stem.signalp},\code{interdomain},\code{norc})
 #' @seealso \code{\link{downloadDomains}}
+#'
 #'
 # @importFrom plyr .
 # @importFrom plyr ddply
