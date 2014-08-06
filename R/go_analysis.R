@@ -1,14 +1,31 @@
+#' Get the genes that contributed to a particular enrichment of a set of terms
+#'
+#' @param   enrichment  Enrichment obtained from \code{\link{getGOEnrichment}}
+#' @param   wanted_terms    vector of go ids that you wish to link to enriched genes
+#' @param   organism    Organism that you wish to search for terms in
+#' @return  Data frame with uniprot id, gene id and gene name
 #' @export
 getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
   unique(convertEntrezIds(organism,unique(unlist(sapply(wanted_terms, function(go) {   geneIdsByCategory(enrichment)[[go]]  })))))
 }
 
-#' Get the GO terms associated with the given UniProt ids
+#' Get the GO terms associated with some UniProt ids
 #'
+#' You can optionally supply a vector of GO terms to the method,
+#' so that any children of the wanted terms will be considered as
+#' the parent term. This is a cheap way of getting a slim GO set.
+#' For example, if your wanted GO term was 'GO:0005829' (cytosol),
+#' a gene annotated with the term 'GO:0044445' (cytosolic part)
+#' will be mapped to 'GO:0005829' (cytosol).
+#'
+#' @param   organism  Organism to look for GO terms for
+#' @param   uniprots  Vector of uniprot ids to retrieve GO terms for
+#' @param   wanted    Top-level GO terms to search under
+#' @param   ontology  GO ontology to search ('BP','MF','CC')
 # @importFrom data.table rbindlist
 # @importFrom AnnotationDbi Term
 #' @export
-getGOTerms <- function(organism,uniprots,wanted=c(),ontology='BP') {
+getGOTerms <- function(organism=9606,uniprots,wanted=c(),ontology='BP') {
   all_terms <- retrieveGOTerms(organism,uniprots)
   if (length(wanted) > 0 && ontology %in% c('CC','BP','MF')) {
     go_ids <- sapply( wanted, function(x) { GO_children(x,ontology) }, USE.NAMES=T,simplify=F )
@@ -23,7 +40,7 @@ getGOTerms <- function(organism,uniprots,wanted=c(),ontology='BP') {
 
 # @importFrom GO.db GO.db
 # @importFrom AnnotationDbi toTable
-retrieveGOTerms <- function(organism,uniprots) {
+retrieveGOTerms <- function(organism=9606,uniprots) {
   getBiocLiteLib('GO.db')
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   query_ids <- getEntrezIds(organism,uniprots)
@@ -127,7 +144,7 @@ getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
 
 # @importFrom AnnotationDbi toTable
 #' @export
-getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
+getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
   getBiocLiteLib("GO.db")
   getBiocLiteLib("GOstats")
   getBiocLiteLib("GSEABase")
@@ -137,6 +154,9 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   library(dbname,character.only=TRUE)
   if (length(query_ids) < 1 & length(uniprots) > 0) {
     query_ids <- getEntrezIds(organism,uniprots)
+  }
+  if (supplemental.terms == TRUE) {
+    supplemental.terms <- downloadUniprotGOA(organism)
   }
   if (as.character(organism) == '4932' & length(query_ids) > 0) {
     entrez_ids <- query_ids
@@ -173,6 +193,33 @@ getGOEnrichment <- function(organism,uniprots,query_ids=c(),universe=c(),ontolog
   hgOver <- hyperGTest(params)
   return (hgOver)
 }
+
+#' @export
+downloadUniprotGOA <- function(organism=9606) {
+  organism <- as.character(organism)
+  organisms <- list('9606'='human','10090'='mouse','10116'='rat','7227'='fly','4932'='yeast')
+  proteomes <- list('10029'='264824.C_griseus')
+  if (organism %in% names(organisms)) {
+    species<-organisms[[organism]]
+    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/",toupper(species),"/gene_association.goa_",species,".gz",sep=''),paste("goa-",species,sep=""),gzip=T,comment.char='!')[,c(2,5,7,9)]
+  }
+  if (organism %in% names(proteomes)) {
+    species<-proteomes[[organism]]
+    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/proteomes/",species,".goa",sep=''), gzip=F,comment.char='!')[,c(2,5,7,9)]
+  }
+  if (is.null(uniprot.goa)) {
+    message("Invalid organism")
+    return ()
+  }
+  names(uniprot.goa)<- c('gene_id','go_id','Evidence','Ontology')
+  #This frame is actually indexed by uniprot ids, but call the column gene_id anyway to avoid renaming
+  uniprot.goa$Ontology <- plyr::mapvalues(uniprot.goa$Ontology,c('F','P','C'),c('MF','BP','CC'))
+  mapped_ids_only <- getEntrezIds(organism,uniprot.goa$gene_id)
+  mapped_ids <- data.frame(uniprot=names(mapped_ids_only),gene_id=as.character(mapped_ids_only))
+  uniprot.goa$gene_id <- plyr::mapvalues(uniprot.goa$gene_id,mapped_ids$uniprot,mapped_ids$gene_id,warn_missing=F)
+  return (uniprot.goa)
+}
+
 
 #' @rdname Rgator-deprecated
 #' @export
