@@ -1,4 +1,17 @@
-#' @export
+#' Replace CDD identifiers with cluster identifiers
+#'
+#' By default, methods on the CDD data sources use the
+#' cddid as the identifier for a domain. We can use the
+#' cluster identifier as an alternative if we wish to
+#' group similar domains.
+#'
+#' This method connects to the CDD to download the
+#' family to superfamily links for the database, and
+#' caches this file locally.
+#'
+#'  @param   cddids  Vector of cddids to look up
+#'  @return  vector of identifiers
+#'  @export
 cddidToSuperfamily <- function(cddids) {
   cdd_superfamily_links <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/family_superfamily_links","cdd-family-superfamily")[,c(1,3)]
   names(cdd_superfamily_links) <- c('cddid','clusterid')
@@ -8,13 +21,20 @@ cddidToSuperfamily <- function(cddids) {
   cddids
 }
 
-#' @export
+#' Retrieve the names for a vector of cdddids
+#'
+#' Names are retrieved from the CDD database for all domains
+#' and a data frame with columns \code{dom}, \code{id}, \code{short}, \code{long} is returned
+#'  @param   cddids   Vector of cddids to lookup names for
+#'  @param   data.frame Domain names
+#'  @export
 getCddNames <- function(cddids) {
   cddid_all <- cacheFile("ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/cddid_all.tbl.gz","cddid-all",gzip=T)
   names(cddid_all) <- c('id','dom','short','long')
   merge(data.frame(dom=cddids),cddid_all,by='dom',all.x=T)
 }
 
+#' Get domain sets - Deprecated
 #' @rdname Rgator-deprecated
 #' @export
 getDomainSets <- function( inputsites, sitecol, domaindata,  max_dom_proportion=0.81, stem_distance=100  ) {
@@ -22,6 +42,53 @@ getDomainSets <- function( inputsites, sitecol, domaindata,  max_dom_proportion=
   calculateDomainSets(inputsites, sitecol, domaindata,  max_dom_proportion, stem_distance)
 }
 
+#' @export
+downloadDomains <- function(organism=c('9060')) {
+  if ("9060" %in% organism) {
+    downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
+  }
+  downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
+}
+
+#' Divide up sets of sites based on their site context
+#'
+#' It is useful to be able to classify sites so that you can see where the sites
+#' occur in relation to other features on a protein. One approach is to look at
+#' the conserved domains (often a proxy for the degree of amino acid conservation
+#' in a given region), and then classify sites based upon the location they are found
+#' in relation to these conserved domains.
+#'
+#' Sequences are retrieved from UniProt, and a domain data frame \code{\link{downloadDomains}} is required
+#' Some conserved domains span the entire length of the protein, and as such they may not
+#' be informative. To filter these domains, the \code{max_dom_proportion} parameter is used
+#' to filter the domain data so that they are not used in the classification process (\code{real} domains).
+#'
+#' Sites that occur within the domain (\code{inside} domains) are chosen based on the site position
+#' being within the start and end positions for the domain, and are not within the predicted transmembrane
+#' region. All combinations of sites and domains are given.
+#'
+#' Sites that occur outside the domain (\code{outside} domains) are all the remaining sites that are not
+#' classified as \code{inside}. All combinations of sites and domains in the protein are given. The domains
+#' that are just outside in this list aren't particularly useful as they are largely a recaptiulation of the
+#' domains that exist within the protein.
+#'
+#' Sites that occur both N- and C- terminal from a domain and are \code{outside}, are defined as being \code{between}
+#' domains. All sets of N- and C- terminal domains for a given site are given. For example, if a site is
+#' located between two domains (imagine a linker domain), then there are domains both N- and C- terminal of the site.
+#' If the site, however, is located at the C-terminal, then it will only have a list of N- domains.
+#'
+#' Stem regions
+#' Type II transmembrane proteins are defined as being single-pass TM proteins having a transmembrane region at the N-terminal
+#' of the protein. Given that transmembrane regions may be broken down into smaller transmembrane
+#' regions by the prediction algorithms, the definition of a Type II is given as a set of N-terminal
+#' transmembranes that overlap a signlap peptide prediction, or a single transmembrane region on a
+#' protein (without any signal peptide).
+#' Type II stem regions are defined as \code{between} sites that occur within \code{stem_distance} amino acids of the
+#' transmembrane region of the protein. All domains that are within \code{stem_distance} amino acids of the site,
+#' as well as the closest transmembrane region or signal peptide are returned.
+#'
+#' @seealso \code{\link{downloadDomains}}
+#'
 # @importFrom plyr .
 # @importFrom plyr ddply
 #' @export
@@ -71,8 +138,10 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     filtered <- subset(df,siteend>0)
     filtered <- filtered[order(filtered$siteend),]
     # We have a SIGNALP or TMHELIX -- something...
-    # This is a type II transmembrane or it is secreted
+    # This is a type II transmembrane
     if (( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm-TMhelix",filtered$dom[1]) ) & (filtered$uniprot[1] %in% typeii )) {
+      # Grab all the C-terminal domains within the stem distance of the site
+      # Grab all the N-terminal domains within the stem distance of the site, and closer than the closest SIGNALP or TM (i.e the closest SIGNALP or TM)
       wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
       wanted$siteend <- NULL
       wanted$startsite <- NULL
