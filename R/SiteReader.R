@@ -412,21 +412,21 @@ testParseJson <- function(filename) {
   return (frame)
 }
 
-cacheFile <- function(url,fileId,gzip=F) {
+cacheFile <- function(url,fileId,gzip=F,...) {
   filename <- file.path(gator.cache,paste("gator-",fileId,sep=''))
   etag <- NULL
   if (file.exists(filename)) {
     if (gzip) {
       filename <- gzfile(filename)
     }
-    return (read.delim(filename,header=F,sep='\t'))
+    return (read.delim(filename,header=F,sep='\t',...))
   }
   download.file(url,filename)
 
   if (gzip) {
     filename <- gzfile(filename)
   }
-  return (read.delim(filename,header=F,sep='\t'))
+  return (read.delim(filename,header=F,sep='\t',...))
 }
 
 uniqueframe <- function(set){
