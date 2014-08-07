@@ -1,6 +1,7 @@
 
 # @importFrom colbycol cbc.read.table
 bgi_readBasicExpressionData <- function(filename='all.gene.rpkm.xls') {
+  require(colbycol)
   file <- filename
   if (grepl('gz$',filename)) {
   	file <- gzfile(filename)
@@ -127,7 +128,7 @@ rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.thresho
 		for(group in names(groups)) {
 			combinations <- expand.grid(groups[[group]],groups[[group]])
 			for (rownum in 1:nrow(combinations)) {
-				logrpkms <- logrpkms[which( abs( logrpkms[,combinations[rownum,1] ] - logrpkms[,combinations[rownum,2]] ) <= remove.clonal.variation),]
+				logrpkms <- logrpkms[which( abs( logrpkms[,combinations[rownum,1] ] - logrpkms[,combinations[rownum,2]] ) <= clonal.variation.threshold),]
 			}
 		}
 	}
@@ -135,7 +136,7 @@ rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.thresho
 	edger.up <- rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=T,pval.edger)
 	edger.down <- rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=F,pval.edger)
 	deseq.up <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=T,pval.deseq)
-	deseq.down <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=T,pval.deseq)
+	deseq.down <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=F,pval.deseq)
 
 	wanted <- rbind ( subset(edger.up,geneid %in% intersect(rpkm_wanted, deseq.up$geneid) ) , subset(edger.down,geneid %in% intersect(rpkm_wanted, deseq.down$geneid ) ) )
 	wanted

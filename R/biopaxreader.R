@@ -224,7 +224,7 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
     newplot <- newplot + grob
   }
   if (uniprot.symbols) {
-    newplot <- newplot + geom_text(data=cords,aes(x=X1,y=X2),label=sapply ( strsplit(reactome.plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
+    newplot <- newplot + geom_text(data=cords,aes(x=X1,y=X2),label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
   }
   newplot <- newplot + scales[[1]]$legend + scales[[2]]$legend
   return(newplot)

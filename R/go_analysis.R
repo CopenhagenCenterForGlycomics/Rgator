@@ -144,7 +144,7 @@ getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
 
 # @importFrom AnnotationDbi toTable
 #' @export
-getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=NA,conditional=TRUE) {
+getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=F,conditional=TRUE) {
   getBiocLiteLib("GO.db")
   getBiocLiteLib("GOstats")
   getBiocLiteLib("GSEABase")
@@ -170,7 +170,7 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
     universe <- getEntrezIds(organism,universe)
   }
   library('GOstats')
-  if (is.na(supplemental.terms)) {
+  if (is.na(supplemental.terms) || supplemental.terms == FALSE) {
   params <- new('GOHyperGParams',
               geneIds=query_ids,
               universeGeneIds=unlist(universe),
