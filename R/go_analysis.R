@@ -198,7 +198,7 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
 downloadUniprotGOA <- function(organism=9606) {
   organism <- as.character(organism)
   organisms <- list('9606'='human','10090'='mouse','10116'='rat','7227'='fly','4932'='yeast')
-  proteomes <- list('10029'='264824.C_griseus')
+  proteomes <- list('10029'='264824.C_griseus', '9823'='35497.S_scrofa.goa')
   if (organism %in% names(organisms)) {
     species<-organisms[[organism]]
     uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/",toupper(species),"/gene_association.goa_",species,".gz",sep=''),paste("goa-",species,sep=""),gzip=T,comment.char='!')[,c(2,5,7,9)]
