@@ -128,7 +128,7 @@ rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.thresho
 		for(group in names(groups)) {
 			combinations <- expand.grid(groups[[group]],groups[[group]])
 			for (rownum in 1:nrow(combinations)) {
-				logrpkms <- logrpkms[which( abs( logrpkms[,combinations[rownum,1] ] - logrpkms[,combinations[rownum,2]] ) <= clonal.variation.threshold),]
+				logrpkms <- logrpkms[which( abs( logrpkms[,as.character(combinations[rownum,1]) ] - logrpkms[,as.character(combinations[rownum,2])] ) <= clonal.variation.threshold),]
 			}
 		}
 	}
