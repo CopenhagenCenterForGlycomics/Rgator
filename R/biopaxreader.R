@@ -149,7 +149,7 @@ pathway2network <- function (biopax, pwid,verbose=F) {
 #'  @param  values  data.frame with two columns minimum : datasource and value
 #'  @param  scales  Color scales used to color the segments
 #'  @seealso \code{\link{makeScale}}
-make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,scales) {
+make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values) {
   # Arguments:  Index around circle
   #             Total segments
   #             Inner (starting radius)
@@ -167,29 +167,45 @@ make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,scal
     inner_line <- sapply(inner_range, function(x) { c(x=c_x+(radius - 0.5*width)*cos(x) , y=c_y+(radius - 0.5*width)*sin(x)) })
     outer_line <- sapply(outer_range, function(x) { c(x=c_x+(radius + 0.5*width)*cos(x) , y=c_y+(radius + 0.5*width)*sin(x)) })
     value <- as.numeric(exp_row['value'])
-    if ( exp_row['datasource'] %in% names(scales) ) {
-      scale_limits <- scales[[ exp_row['datasource'] ]]$legend$limits
-      if (value > scale_limits[2]) {
-        value <- scale_limits[2]
-      }
-      if (value < scale_limits[1]) {
-        value <- scale_limits[1]
-      }
+    scaledvalue <- as.numeric(exp_row['scaledvalue'])
+    if (unique(as.numeric(exp_row['value']) != 0)) {
+      geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y,fill=fillval),color='gray')
+    } else {
+      geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y,fill=fillval),color='red')      
     }
-    if ( abs(value) < 0.00001 ) {
-      value <- 0
-    }
-    color <- scales[[ exp_row['datasource'] ]]$palette(value)
-    geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value),aes(x=x,y=y),fill=color,color='gray')
   })
 }
 
 # @importFrom scales rescale
 makeScale <- function(name,in.cols,limits,fn) {
-  vals <- c(min(limits),-0.00001,-0.00001,0,0.00001,0.00001,max(limits))
+  #http://stackoverflow.com/questions/18700938/ggplot2-positive-and-negative-values-different-color-gradient
+  vals <- c(min(limits),0-.Machine$double.eps,0,0+.Machine$double.eps,max(limits))
   breaks <- min(limits):max(limits)
-  cols <- c(in.cols$negative[1],in.cols$negative[2],in.cols$negative[2],in.cols$middle,in.cols$positive[1],in.cols$positive[1],in.cols$positive[2])
-  return (list(palette=fn(colours=cols,breaks=breaks,limits=limits,values=vals)$palette, legend=fn(name=name,colours=cols,limits=limits,breaks=breaks,values=scales::rescale(vals)  )))
+  cols <- c(in.cols$negative[1],in.cols$negative[2],in.cols$middle,in.cols$positive[1],in.cols$positive[2])
+  #name=name,
+  return (list(palette=fn(colours=cols,breaks=breaks,limits=limits,values=vals)$palette, legend=fn(colours=cols,limits=limits,breaks=breaks,values=scales::rescale(vals)  )))
+}
+
+makeScaleMultiple <- function(...) {
+  all.cols <- list(...)
+  order_mag <- 0
+  vals <- c()
+  cols <- c()
+  label_scales <- list()
+  for (coltype in names(all.cols)) {
+    in.cols <- all.cols[[coltype]]
+    limits <- in.cols$limits
+    vals <- c(vals, order_mag + min(limits),order_mag-.Machine$double.eps,order_mag,order_mag+.Machine$double.eps,order_mag + max(limits) )
+    cols <- c(cols, in.cols$negative[1],in.cols$negative[2],in.cols$middle,in.cols$positive[1],in.cols$positive[2])
+    label_scales[[coltype]] <- order_mag
+    order_mag <- order_mag + 20
+  }
+  scaledvals <- scales::rescale(vals)
+  for (i in seq(3,length(vals),by=5)) {
+    scaledvals[i-1] <- scaledvals[i] - .Machine$double.eps
+    scaledvals[i+1] <- scaledvals[i] + .Machine$double.eps
+  }
+  list( scale=ggplot2::scale_fill_gradientn(guide="legend", colours=cols,breaks=seq(min(vals),max(vals),by=0.5),values=scaledvals,limits=c(min(vals),max(vals))) , rescaler = label_scales )
 }
 
 #testing_expression <- data.frame(uniprot=c(rep('Q9UHC9',2),rep('O95477',2)),value=c(3,5,-3,0),datasource=c('rnaseq','ms','rnaseq','ms'))
@@ -201,11 +217,14 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
   expression <- subset(expression,!is.na(value))
   expression$idx <- row.names(expression)
   expression$size <- 1
-  scale_limits <- list(...)
-  scales <- list(scale1=makeScale( names(scale_limits)[1],list(negative=c('#FC7F23','#FCBE75'),middle='#ffffff',positive=c('#A7CEE2','#2579B2')), scale_limits[[1]], ggplot2::scale_color_gradientn ),
-                 scale2=makeScale( names(scale_limits)[2],list(negative=c('#399F34','#B3DE8D'),middle='#99ff99',positive=c('#CAB2D5','#6A4098')), scale_limits[[2]], ggplot2::scale_fill_gradientn )
-                 )
-  names(scales) <- names(scale_limits)
+#  scale_limits <- list(...)
+#  scales <- list(scale1=makeScale( names(scale_limits)[1],list(negative=c('#FC7F23','#FCBE75'),middle='#ffffff',positive=c('#A7CEE2','#2579B2')), scale_limits[[1]], ggplot2::scale_color_gradientn ),
+#                 scale2=makeScale( names(scale_limits)[2],list(negative=c('#399F34','#B3DE8D'),middle='#99ff99',positive=c('#CAB2D5','#6A4098')), scale_limits[[2]], ggplot2::scale_fill_gradientn )
+#                 )
+  scale_info <- makeScaleMultiple(...)
+  expression$scaledvalue <- apply(expression[,c('datasource','value')],1,function(row) { as.numeric(row['value']) + scale_info$rescaler[[ row['datasource'] ]]  })
+  browser()
+  #names(scales) <- names(scale_limits)
   grobs <- apply(subset(cords,uniprot != ''),1,function(rowdata) {
     all_uniprots <- gsub("-.*","",unlist(strsplit(rowdata['uniprot']," ")))
     return_data <- c()
@@ -215,7 +234,7 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
       local_expr <- local_expr[with(local_expr, order(datasource)), ]
       local_expr$radius <- rep(radius,nrow(local_expr))
       if (nrow(local_expr) > 0) {
-        return_data <- c(return_data, make_wedges.protein(radius,length(all_uniprots), 0.5,0.5, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),local_expr,scales))
+        return_data <- c(return_data, make_wedges.protein(radius,length(all_uniprots), 0.5,0.5, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),local_expr))
       }
     }
     return (return_data)
@@ -226,6 +245,6 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
   if (uniprot.symbols) {
     newplot <- newplot + geom_text(data=cords,aes(x=X1,y=X2),label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
   }
-  newplot <- newplot + scales[[1]]$legend + scales[[2]]$legend
+  newplot <- newplot + scale_info$scale + theme(legend.key.size = unit(0.25, "cm")) #+ scales[[1]]$legend + scales[[2]]$legend
   return(newplot)
 }
