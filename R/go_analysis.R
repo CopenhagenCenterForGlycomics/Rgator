@@ -148,7 +148,7 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
   getBiocLiteLib("GO.db")
   getBiocLiteLib("GOstats")
   getBiocLiteLib("GSEABase")
-  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db','9823'='org.Ss.eg.db')
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
   library(dbname,character.only=TRUE)
