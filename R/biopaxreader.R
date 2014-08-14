@@ -1,5 +1,4 @@
-# Convert BioPax files to Edges for making a network diagram
-#' Load a Reactome pathway from an URL or local file
+#'  Load a Reactome pathway from an URL or local file
 #'
 #'  @param  pathwayURL URL to retrieve pathway from (http:// or file://)
 #'  @return BioPax Parsed biopax file
@@ -171,7 +170,7 @@ make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,zero
     if (unique(as.numeric(exp_row['value']) != 0)) {
       geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y,fill=fillval),color='gray')
     } else {
-      geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y),fill=zeroes[[ exp_row['datasource'] ]],color='red')
+      geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y),fill=zeroes[[ exp_row['datasource'] ]],color='gray')
     }
   })
 }
@@ -210,15 +209,50 @@ makeScaleMultiple <- function(...) {
         zeroes = sapply(all.cols, function(x) { x$middle },USE.NAMES=T,simplify=F) )
 }
 
+require(proto)
+GeomTextBackground <- proto(ggplot2:::GeomText, {
+  objname <- "backgroundtext"
+  draw <- function(., data, scales, coordinates, ..., parse = FALSE,
+                   expand = 1.2, bgcol = "grey50", bgfill = NA, bgalpha = 1) {
+    lab <- data$label
+    if (parse) {
+      lab <- parse(text = lab)
+    }
+    with(ggplot2:::coord_transform(coordinates, data, scales), {
+      sizes <- plyr::llply(1:nrow(data),
+        function(i) with(data[i, ], {
+          grobs <- grid::textGrob(lab[i], default.units="native", rot=angle, gp=grid::gpar(fontsize=size * .pt))
+          list(w = grid::grobWidth(grobs), h = grid::grobHeight(grobs))
+        }))
+      widths = do.call(grid::unit.c, lapply(sizes, "[[", "w")) * expand
+      heights = do.call(grid::unit.c, lapply(sizes, "[[", "h")) * expand
+      rectgrobs <- as.vector(lapply(1:length(x),function(idx) { 
+        grid::roundrectGrob(x[idx], y[idx],
+                     width = widths[idx],
+                     height = heights[idx],
+                     r = heights*0.25,
+                     gp = grid::gpar(col = scales::alpha(bgcol, bgalpha), fill = scales::alpha(bgfill, bgalpha)))
+      }))
+      grid::gList( do.call(grid::gList,rectgrobs), .super$draw(., data, scales, coordinates, ..., parse))
+    })
+  }
+})
+
+#' @export
+geom_text_background <- function (...) {
+  GeomTextBackground$new(...)
+}
+
 #testing_expression <- data.frame(uniprot=c(rep('Q9UHC9',2),rep('O95477',2)),value=c(3,5,-3,0),datasource=c('rnaseq','ms','rnaseq','ms'))
 
-overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symbols=F,...) {
+overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symbols=F,node.color=NA,...) {
   cords <- plot$cords
   newplot <- plot$plot
   expression$value <- as.numeric(expression$value)
   expression <- subset(expression,!is.na(value))
   expression$idx <- row.names(expression)
   expression$size <- 1
+  expression <- subset(expression, uniprot %in% plot$cords$uniprot)
 #  scale_limits <- list(...)
 #  scales <- list(scale1=makeScale( names(scale_limits)[1],list(negative=c('#FC7F23','#FCBE75'),middle='#ffffff',positive=c('#A7CEE2','#2579B2')), scale_limits[[1]], ggplot2::scale_color_gradientn ),
 #                 scale2=makeScale( names(scale_limits)[2],list(negative=c('#399F34','#B3DE8D'),middle='#99ff99',positive=c('#CAB2D5','#6A4098')), scale_limits[[2]], ggplot2::scale_fill_gradientn )
@@ -226,13 +260,17 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
   scale_info <- makeScaleMultiple(...)
   expression$scaledvalue <- apply(expression[,c('datasource','value')],1,function(row) { as.numeric(row['value']) + scale_info$rescaler[[ row['datasource'] ]]  })
   #names(scales) <- names(scale_limits)
+  if ( ! is.na(node.color) ) {
+    node.frame <- merge(cords,subset(expression, datasource %in% node.color),by='uniprot')
+    newplot <- newplot + geom_point(data=node.frame,aes(x=X1,y=X2),size=3,color=scale_info$scale$palette(scales::rescale(node.frame$scaledvalue,from=scale_info$scale$limits)))
+  }
   grobs <- apply(subset(cords,uniprot != ''),1,function(rowdata) {
     all_uniprots <- gsub("-.*","",unlist(strsplit(rowdata['uniprot']," ")))
     return_data <- c()
     for(radius in 1:length(all_uniprots)) {
       uprot <- all_uniprots[radius]
-      local_expr <- subset(expression,uniprot == uprot)
-      local_expr <- local_expr[with(local_expr, order(datasource)), ]
+      local_expr <- subset(expression,uniprot == uprot & ! datasource %in% node.color )
+      local_expr <- local_expr[with(local_expr, order(datasource,decreasing=T)), ]
       local_expr$radius <- rep(radius,nrow(local_expr))
       if (nrow(local_expr) > 0) {
         return_data <- c(return_data, make_wedges.protein(radius,length(all_uniprots), 0.5,0.5, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),local_expr,scale_info$zeroes))
@@ -244,7 +282,7 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
     newplot <- newplot + grob
   }
   if (uniprot.symbols) {
-    newplot <- newplot + geom_text(data=cords,aes(x=X1,y=X2),label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
+    newplot <- newplot + geom_text_background(data=cords,aes(x=X1,y=X2-1),bgfill='#000000',bgalpha=0.7,expand=2,size=2,color='white',label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
   }
   newplot <- newplot + scale_info$scale + theme(legend.key.size = unit(0.25, "cm")) #+ scales[[1]]$legend + scales[[2]]$legend
   return(newplot)

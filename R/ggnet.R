@@ -147,7 +147,7 @@ ggnet <- function(net, # an object of class network
   
   edges$type <- as.matrix.network.edgelist(net,attr="type")[,3]
   if(ncol(as.matrix.network.edgelist(net,attr="combined")) >= 3) {
-    edges$width <- as.matrix.network.edgelist(net,attr="combined")[,3]    
+    edges$width <- as.matrix.network.edgelist(net,attr="combined")[,3] / 1000
   } else {
     edges$width <- rep(segment.size,nrow(edges))
   }
@@ -180,11 +180,12 @@ ggnet <- function(net, # an object of class network
   plotcord$size <- sapply(plotcord$class,function(cl) { if (cl == "Protein") { return (1.5) } else if (cl == "Complex") { return (0.5) } else if (cl == "BiochemicalReaction") { return(0.5) } else { return (0) } })
   
   if(weight.method == "none") {
+    if (size > 0) {
     pnet <- pnet + geom_point(mapping=aes(shape=shape,size=size),
                               data = plotcord, 
                               alpha = inherit(node.alpha)
                               ) + scale_shape_identity() 
-    
+    }
   }
   else {
     plotcord$weight <- degrees[, which(names(degrees) == weight)]

@@ -3,9 +3,9 @@
 # @importFrom intergraph asDF
 # @importFrom plyr mapvalues
 # @importFrom network network set.edge.attribute set.vertex.attribute network.vertex.names
-getStringNetwork <- function(organism=9606,uniprots=c('q14118','P24043'),get.neighbours=F) {
+getStringNetwork <- function(organism=9606,uniprots=c('q14118','P24043'),get.neighbours=F,threshold=700) {
   getBiocLiteLib('STRINGdb')
-  string_db <- STRINGdb::STRINGdb$new(species=organism,version="9_05")
+  string_db <- STRINGdb::STRINGdb$new(species=organism,version="9_05",score_threshold=threshold)
   all_string_proteins <- string_db$get_proteins()$protein_external_id
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
