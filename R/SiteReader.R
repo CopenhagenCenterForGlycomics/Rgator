@@ -283,7 +283,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     all_prots <- names(data$data)
     names(all_prots) <- all_prots
     frame <- plyr::llply(all_prots,.fun=function(uprot) {
-      if (nchar(data$data[[uprot]]) > 0) {
+      if (head(nchar(data$data[[uprot]]),1) > 0) {
         decodeBase64(data$data[[uprot]])
       }
     },.progress="text")
@@ -366,8 +366,12 @@ testParseBJson <- function(filename) {
   all_prots <- names(origData$data)
   names(all_prots) <- all_prots
   frame <- plyr::llply(all_prots,.fun=function(uprot) {
-    if (nchar(origData$data[[uprot]]) > 0) {
-      decodeBase64(origData$data[[uprot]])
+    if (head(nchar(origData$data[[uprot]]),1) > 0) {
+      if (length(origData$data[[uprot]]) > 1) {
+        plyr::llply( origData$data[[uprot]], decodeBase64 )
+      } else {
+        decodeBase64(origData$data[[uprot]])
+      }
     }
   },.progress="text")
 

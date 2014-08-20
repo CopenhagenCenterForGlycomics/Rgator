@@ -156,19 +156,19 @@ make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,zero
   #             Center of wedge
   #             Center of wedge
   #             Expression values frame
-  values$idx <- (1:nrow(values))*width
+  values$idx <- (0:(nrow(values)-1))
   # Rnaseq : blue -> orange
   # ms : green -> purple
   apply(values,1,function(exp_row) {
     inner_range <- seq(0,2*pi/total,length.out=30) + idx*2*pi/total
     outer_range <- rev(inner_range)
-    radius <- start_radius + 2*as.numeric(exp_row['idx']) * width
+    radius <- start_radius + (0.5 + as.numeric(exp_row['idx'])) * width
     inner_line <- sapply(inner_range, function(x) { c(x=c_x+(radius - 0.5*width)*cos(x) , y=c_y+(radius - 0.5*width)*sin(x)) })
     outer_line <- sapply(outer_range, function(x) { c(x=c_x+(radius + 0.5*width)*cos(x) , y=c_y+(radius + 0.5*width)*sin(x)) })
     value <- as.numeric(exp_row['value'])
     scaledvalue <- as.numeric(exp_row['scaledvalue'])
     if (unique(as.numeric(exp_row['value']) != 0)) {
-      geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y,fill=fillval),color='gray')
+      geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y,fill=fillval),color='white')
     } else {
       geom_polygon(data=data.frame(x=c(inner_line['x',],outer_line['x',]),y=c(inner_line['y',],outer_line['y',]),value=value,fillval=scaledvalue),aes(x=x,y=y),fill=zeroes[[ exp_row['datasource'] ]],color='gray')
     }
@@ -262,7 +262,7 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
   #names(scales) <- names(scale_limits)
   if ( ! is.na(node.color) ) {
     node.frame <- merge(cords,subset(expression, datasource %in% node.color),by='uniprot')
-    newplot <- newplot + geom_point(data=node.frame,aes(x=X1,y=X2),size=3,color=scale_info$scale$palette(scales::rescale(node.frame$scaledvalue,from=scale_info$scale$limits)))
+    newplot <- newplot + geom_point(data=node.frame,aes(x=X1,y=X2),size=6,color=scale_info$scale$palette(scales::rescale(node.frame$scaledvalue,from=scale_info$scale$limits)))
   }
   grobs <- apply(subset(cords,uniprot != ''),1,function(rowdata) {
     all_uniprots <- gsub("-.*","",unlist(strsplit(rowdata['uniprot']," ")))
@@ -273,7 +273,7 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
       local_expr <- local_expr[with(local_expr, order(datasource,decreasing=T)), ]
       local_expr$radius <- rep(radius,nrow(local_expr))
       if (nrow(local_expr) > 0) {
-        return_data <- c(return_data, make_wedges.protein(radius,length(all_uniprots), 0.5,0.5, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),local_expr,scale_info$zeroes))
+        return_data <- c(return_data, make_wedges.protein(radius,length(all_uniprots), 1, 1.5, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),local_expr,scale_info$zeroes))
       }
     }
     return (return_data)
@@ -282,7 +282,8 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
     newplot <- newplot + grob
   }
   if (uniprot.symbols) {
-    newplot <- newplot + geom_text_background(data=cords,aes(x=X1,y=X2-1),bgfill='#000000',bgalpha=0.7,expand=2,size=2,color='white',label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
+#    newplot <- newplot + geom_text_background(data=cords,aes(x=X1,y=X2-1),bgfill='#000000',bgalpha=0.7,expand=2,size=4,color='white',label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
+    newplot <- newplot + geom_text(data=cords,aes(x=X1,y=X2-1),size=4,color='black',label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
   }
   newplot <- newplot + scale_info$scale + theme(legend.key.size = unit(0.25, "cm")) #+ scales[[1]]$legend + scales[[2]]$legend
   return(newplot)

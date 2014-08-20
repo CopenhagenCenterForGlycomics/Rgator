@@ -27,14 +27,14 @@ make_wedges.go <- function(idx,total,start_radius,width,c_x,c_y,values,scales) {
   #             Center of wedge
   #             Expression values list
 
-  values$idx <- (1:nrow(values))*width
+  values$idx <- (0:(nrow(values)-1))
   # Rnaseq : blue -> orange
   # ms : green -> purple
 
   apply(values,1,function(exp_row) {
     inner_range <- seq(0,2*pi/total,length.out=30) + idx*2*pi/total
     outer_range <- rev(inner_range)
-    radius <- start_radius + 2*as.numeric(exp_row['idx']) * width
+    radius <- start_radius + (as.numeric(exp_row['idx']) + 0.5) * width
     inner_line <- sapply(inner_range, function(x) { c(x=c_x+(radius - 0.5*width)*cos(x) , y=c_y+(radius - 0.5*width)*sin(x)) })
     outer_line <- sapply(outer_range, function(x) { c(x=c_x+(radius + 0.5*width)*cos(x) , y=c_y+(radius + 0.5*width)*sin(x)) })
     value <- exp_row['value']
@@ -92,7 +92,7 @@ overlayGOValues <- function(plot,goframe,label.terms=F,...) {
       return (return_data)
     }
     for(radius in 1:length(sources)) {
-        return_data <- c(return_data, make_wedges.go(radius,length(sources), 0,0.5, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),data.frame(value=sources[radius]),scales))
+        return_data <- c(return_data, make_wedges.go(radius,length(sources), 0.5,1, as.numeric(rowdata['X1']), as.numeric(rowdata['X2']),data.frame(value=sources[radius]),scales))
     }
     return (return_data)
   })
