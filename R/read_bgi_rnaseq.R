@@ -81,12 +81,12 @@ rnaseq.getDifferentialGenes.DESeq <- function(deseq,up=T,adj.pval=0.1) {
 	retvals
 }
 
-rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,pval=0.05) {
+rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,adj.pval=0.05) {
 	et <- edgeR::exactTest(edgeR,pair=as.character(unique(edgeR$samples$group)))
 	if (up) {
-		diffs <- et$table[which(decideTestsDGE(et,p=pval,adjust="BH") > 0),]
+		diffs <- et$table[which(decideTestsDGE(et,p=adj.pval,adjust="BH") > 0),]
 	} else {
-		diffs <- et$table[which(decideTestsDGE(et,p=pval,adjust="BH") < 0),]
+		diffs <- et$table[which(decideTestsDGE(et,p=adj.pval,adjust="BH") < 0),]
 	}
 	diffs$geneid <- rownames(diffs)
 	metadata<- convertEntrezIds(9606,rownames(diffs))
@@ -95,7 +95,7 @@ rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,pval=0.05) {
 
 #' @export
 rnaseq.edgeR.getBCV <- function(all.reads,filtered=T,...) {
-	dge_analysis <- rnaseq.prepareDifferential(all.reads,filtered,...)
+	dge_analysis <- rnaseq.prepareDifferential.EdgeR(all.reads,filtered,...)
 	sqrt(dge_analysis$common.dispersion)
 }
 
