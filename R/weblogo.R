@@ -48,7 +48,7 @@ berrylogo<-function(pwm,backFreq,zero=.0001){
   dimnames(bval)[[2]]<- c((-1*window_size):window_size)
   p<-ggplot2::ggplot(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
     ggplot2::geom_line(ggplot2::aes(y=1), colour = "grey",size=2)+
-    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),face='bold',size=8)+scale_colour_manual(values=chemistry)+
+    ggplot2::geom_text(ggplot2::aes(colour=factor(aa)),face='bold',size=8)+ggplot2::scale_colour_manual(values=chemistry)+
     ggplot2::theme(legend.position="none")+
     ggplot2::scale_x_continuous(name="Position",breaks=(-1*window_size):window_size)+
     ggplot2::scale_y_continuous(name="Relative frequency",breaks=c(0.0625,0.125,0.25,0.5,1,seq(2,20,by=2)),limits=c(2^-11,20),label=function(x) format(x,nsmall = 2,drop0trailing=T,scientific = FALSE))+
