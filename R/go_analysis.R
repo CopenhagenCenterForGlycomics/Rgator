@@ -9,7 +9,7 @@ getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
   unique(convertEntrezIds(organism,unique(unlist(sapply(wanted_terms, function(go) {   geneIdsByCategory(enrichment)[[go]]  })))))
 }
 
-#' Get the GO terms associated with some UniProt ids
+#' Get the GO terms associated with the given UniProt ids
 #'
 #' You can optionally supply a vector of GO terms to the method,
 #' so that any children of the wanted terms will be considered as
