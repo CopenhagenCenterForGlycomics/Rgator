@@ -1,4 +1,20 @@
-#' @export
+#' Replace CDD identifiers with cluster identifiers
+#'
+#' By default, methods on the CDD data sources use the
+#' cddid as the identifier for a domain. We can use the
+#' cluster identifier as an alternative if we wish to
+#' group similar domains.
+#'
+#' This method connects to the CDD to download the
+#' family to superfamily links for the database, and
+#' caches this file locally.
+#'
+#'  @param   dataframe  Data frame containing at least one column (windowcol) that has the windows to plot
+#'  @param   windowcol  Column in the dataframe to look for window sequences
+#'  @param   frequencies  Amino acid frequencies - defaults to frequencies of amino acids in UniProt December 2013 release
+#'  @param   labels   Boolean flag as to whether to give a plot title with the number of rows / proteins used
+#'  @return  berry logo plot
+#'  @export
 generateLogoPlot <- function(dataframe,windowcol,frequencies=c(),labels=T) {
   uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
   if(length(frequencies) < 1) {
