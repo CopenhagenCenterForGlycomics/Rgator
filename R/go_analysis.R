@@ -80,6 +80,9 @@ GO_parents <- function(node = "GO:0008150", ontology = "BP") {
 
 
 # @importFrom AnnotationDbi toTable
+#' Get the parents of the given GO terms
+#' @param node  GO node to examine
+#' @param ontology  Ontology to look for parents in
 #' @export
 getGOParents <- function(node = "GO:0008150", ontology = "BP") {
     if (ontology == "BP") GOPARENTS <- GO.db::GOBPPARENTS
@@ -116,6 +119,9 @@ GO_children <- function(node = "GO:0008150", ontology = "BP") {
 }
 
 # @importFrom AnnotationDbi toTable
+#' Get the parents of the given GO terms
+#' @param node  GO node to examine
+#' @param ontology  Ontology to look for children in
 #' @export
 getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
     if (ontology == "BP") GOCHILDREN <- GO.db::GOBPCHILDREN
@@ -143,6 +149,18 @@ getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
 }
 
 # @importFrom AnnotationDbi toTable
+#' Perform an enrichment analysis on a given set of uniprot ids
+#' @param organism  NCBI taxonomy identifier (e.g. 9606 for human)
+#' @param uniprots  Vector of uniprot accessions to perform enrichment upon
+#' @param query_ids Optional Entrez gene ids to use if there are no uniprot identifiers
+#' @param universe  Vector of uniprot accessions to use as the universe. Defaults to all GO annotations for the organism
+#' @param ontology  Ontology to perform enrichment in ('BP','CC','MF')
+#' @param direction Direction to check for enrichment ('over' or 'under' for over- and under-representation respectively)
+#' @param supplemental.terms  Flag to see if supplemental annotations should be retrieved
+#'                            from UniprotGOA. Can also set to a dataframe containing the
+#'                            terms.
+#' @param conditional When set to TRUE, the enrichment will be conditional, taking into account relationships of terms
+#' @return Enrichment object
 #' @export
 getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),ontology='BP',direction='over',supplemental.terms=F,conditional=TRUE) {
   getBiocLiteLib("GO.db")
@@ -194,6 +212,9 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
   return (hgOver)
 }
 
+#' Download annotations from the UniprotGOA site
+#' @param   organism  NCBI taxonomy id (e.g. 9606) to get terms for
+#' @return  Data frame with gene id, go_id, Evidence and Ontology columns
 #' @export
 downloadUniprotGOA <- function(organism=9606) {
   organism <- as.character(organism)
