@@ -1,20 +1,34 @@
-#'  Load a Reactome pathway from an URL or local file
+#'  Load a Reactome pathway network from an URL or local file
 #'
 #'  @param  pathwayURL URL to retrieve pathway from (http:// or file://)
-#'  @return BioPax Parsed biopax file
+#'  @return Network object for the given pathway
 #'  @export
 #'  @examples
 #'  # Load from a local file
 #'  getReactomePathway("file://mypathway.biopax")
 #'  # Load from ReactomeDB
 #'  url <- 'http://www.reactome.org/ReactomeRESTfulAPI/RESTfulWS/biopaxExporter/Level3/535734'
-#'  getReactomePathway(url)
+#'  network <- getReactomePathway(url)
 # @importFrom rBiopaxParser readBiopax
 getReactomePathway <- function(pathwayURL) {
+  biopax <- loadReactomePathway(pathwayURL)
+  pathway2network(biopax, rBiopaxParser::listInstances(biopax, class="pathway")$id[1])
+}
+
+loadReactomePathway <- function(pathwayURL) {
   td = tempdir()
   tf = tempfile(tmpdir=td,fileext='.biopax')
   download.file(pathwayURL,tf)
   rBiopaxParser::readBiopax(tf)
+}
+
+#' Plot a Reactome network from a given pathway URL
+#'
+#'  @param  pathwayURL URL to retrieve pathway from (http:// or file://)
+#'  @return List containing two elements, plot: Containing the plot, and coords: Containing the co-ordinates of each protein
+#'  @export
+generateReactomeNetwork <- function(pathwayURL) {
+  ggnet(getReactomePathway(pathwayURL))
 }
 
 
@@ -23,9 +37,9 @@ striphash <- function(str)
   gsub("#","",str)
 }
 
-#'  Split up interactions in a biopax pathway so that they are their own smaller
-#'  sub-networks. We split a single interaction into the left and right parts
-#'  with a new interaction entity that sits in between the left and the right
+#  Split up interactions in a biopax pathway so that they are their own smaller
+#  sub-networks. We split a single interaction into the left and right parts
+#  with a new interaction entity that sits in between the left and the right
 # @importFrom rBiopaxParser getReferencedIDs listInstances
 interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDonly = FALSE,
                                     biopaxlevel = 3)
@@ -71,7 +85,7 @@ interaction2components <- function (biopax, id, splitComplexes = TRUE, returnIDo
                 biopaxlevel = biopaxlevel)
 }
 
-#' Modified from pathway2regulatoryGraph in rBiopaxReader
+# Modified from pathway2regulatoryGraph in rBiopaxReader
 #
 # @importFrom rBiopaxParser listPathwayComponents listComplexComponents selectInstances getSubClasses getInstanceClass getXrefAnnotations
 # @importFrom data.table setkeyv rbindlist
@@ -138,16 +152,17 @@ pathway2network <- function (biopax, pwid,verbose=F) {
   network::set.vertex.attribute(net,attrname='uniprot',value=lapply(sapply(network::network.vertex.names(net),get_proteins ),function(x) { paste(unique(x),collapse=' ') } ))
   net
 }
-#'  Draw a wedge at a given point
-#'  @param  idx     Index of segment around the circle
-#'  @param  total   Total number of segments aroudn the circle
-#'  @param  start_radius  Inner (starting) radius
-#'  @param  width   Width of segment
-#'  @param  c_x     X Center of circle that segment is placed around
-#'  @param  c_y     Y Center of circle that segment is placed around
-#'  @param  values  data.frame with two columns minimum : datasource and value
-#'  @param  scales  Color scales used to color the segments
-#'  @seealso \code{\link{makeScale}}
+
+#  Draw a wedge at a given point
+#  @param  idx     Index of segment around the circle
+#  @param  total   Total number of segments aroudn the circle
+#  @param  start_radius  Inner (starting) radius
+#  @param  width   Width of segment
+#  @param  c_x     X Center of circle that segment is placed around
+#  @param  c_y     Y Center of circle that segment is placed around
+#  @param  values  data.frame with two columns minimum : datasource and value
+#  @param  scales  Color scales used to color the segments
+#  @seealso \code{\link{makeScale}}
 make_wedges.protein <- function(idx,total,start_radius,width,c_x,c_y,values,zeroes) {
   # Arguments:  Index around circle
   #             Total segments
@@ -187,6 +202,9 @@ makeScale <- function(name,in.cols,limits,fn) {
 
 makeScaleMultiple <- function(...) {
   all.cols <- list(...)
+  if (length(all.cols) < 1) {
+    return (list(scale=ggplot2::scale_fill_identity(),rescaler=list(),zeroes=c() ))
+  }
   order_mag <- 0
   vals <- c()
   cols <- c()
@@ -238,6 +256,13 @@ GeomTextBackground <- proto(ggplot2:::GeomText, {
   }
 })
 
+#' Rendering of text labels with a roundrect background on them
+#'
+#' Works the same as geom_text, but you can set extra parameters on the background
+#' @param expand  Ratio to expand the text label background by (defaults to 1.2)
+#' @param bgcol   Colour to use to draw the background roundrect
+#' @param bgfill  Fill colour to use for the background roundrect
+#' @param bgalpha Alpha opacity for the background roundrect
 #' @export
 geom_text_background <- function (...) {
   GeomTextBackground$new(...)
@@ -245,31 +270,53 @@ geom_text_background <- function (...) {
 
 #testing_expression <- data.frame(uniprot=c(rep('Q9UHC9',2),rep('O95477',2)),value=c(3,5,-3,0),datasource=c('rnaseq','ms','rnaseq','ms'))
 
-overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symbols=F,node.color=NA,...) {
-  cords <- plot$cords
+#' @rdname Rgator-deprecated
+#' @export
+overlayExpression.protein <- function(organism,plot,expression,uniprot.symbols,node.color,...) {
+  networkPlot.annotate(organism,plot,expression,uniprot.symbols,node.color,...)
+}
+
+#' Annotate a protein based network plot with data from a table of annotations
+#'
+#' Given a network plot obtained from String \code{\link{generateStringNetwork}} or Reactome \code{\link{generateReactomeNetwork}}
+#' overlay expression information as a set of halos.
+#' @param organism  NCBI taxonomy id for the organism that we are working with
+#' @param plot      Result from either \code{\link{generateStringNetwork}} or \code{\link{generateReactomeNetwork}}
+#' @param annotations  Data table with three columns - \code{uniprot},\code{value},\code{datasource}
+#' @param uniprot.symbols Toggle if the uniprot symbols should be overlaid on the graph
+#' @param node.color      Datasource string value to use for setting the colour of the node
+#' @param ...             Colour ranges to use for the scales for each of the given datasources
+#' @export
+networkPlot.annotate <- function(organism=9606,plot,annotations=data.frame(uniprot=NA,value=NA,datasource=NA),uniprot.symbols=F,node.color=NA,...) {
+  coords <- plot$coords
   newplot <- plot$plot
-  expression$value <- as.numeric(expression$value)
-  expression <- subset(expression,!is.na(value))
-  expression$idx <- row.names(expression)
-  expression$size <- 1
-  expression <- subset(expression, uniprot %in% plot$cords$uniprot)
+
+  scale_info <- makeScaleMultiple(...)
+
+  annotations$value <- as.numeric(annotations$value)
+  annotations <- subset(annotations,!is.na(value))
+  if (nrow(annotations) > 0) {
+    annotations$idx <- row.names(annotations)
+    annotations$size <- 1
+    annotations <- subset(annotations, uniprot %in% coords$uniprot)
+    annotations$scaledvalue <- apply(annotations[,c('datasource','value')],1,function(row) { as.numeric(row['value']) + scale_info$rescaler[[ row['datasource'] ]]  })
+  }
+
 #  scale_limits <- list(...)
 #  scales <- list(scale1=makeScale( names(scale_limits)[1],list(negative=c('#FC7F23','#FCBE75'),middle='#ffffff',positive=c('#A7CEE2','#2579B2')), scale_limits[[1]], ggplot2::scale_color_gradientn ),
 #                 scale2=makeScale( names(scale_limits)[2],list(negative=c('#399F34','#B3DE8D'),middle='#99ff99',positive=c('#CAB2D5','#6A4098')), scale_limits[[2]], ggplot2::scale_fill_gradientn )
 #                 )
-  scale_info <- makeScaleMultiple(...)
-  expression$scaledvalue <- apply(expression[,c('datasource','value')],1,function(row) { as.numeric(row['value']) + scale_info$rescaler[[ row['datasource'] ]]  })
   #names(scales) <- names(scale_limits)
   if ( ! is.na(node.color) ) {
-    node.frame <- merge(cords,subset(expression, datasource %in% node.color),by='uniprot')
+    node.frame <- merge(coords,subset(annotations, datasource %in% node.color),by='uniprot')
     newplot <- newplot + geom_point(data=node.frame,aes(x=X1,y=X2),size=6,color=scale_info$scale$palette(scales::rescale(node.frame$scaledvalue,from=scale_info$scale$limits)))
   }
-  grobs <- apply(subset(cords,uniprot != ''),1,function(rowdata) {
+  grobs <- apply(subset(coords,uniprot != ''),1,function(rowdata) {
     all_uniprots <- gsub("-.*","",unlist(strsplit(rowdata['uniprot']," ")))
     return_data <- c()
     for(radius in 1:length(all_uniprots)) {
       uprot <- all_uniprots[radius]
-      local_expr <- subset(expression,uniprot == uprot & ! datasource %in% node.color )
+      local_expr <- subset(annotations,uniprot == uprot & ! datasource %in% node.color )
       local_expr <- local_expr[with(local_expr, order(datasource,decreasing=T)), ]
       local_expr$radius <- rep(radius,nrow(local_expr))
       if (nrow(local_expr) > 0) {
@@ -282,8 +329,8 @@ overlayExpression.protein <- function(organism=9606,plot,expression,uniprot.symb
     newplot <- newplot + grob
   }
   if (uniprot.symbols) {
-#    newplot <- newplot + geom_text_background(data=cords,aes(x=X1,y=X2-1),bgfill='#000000',bgalpha=0.7,expand=2,size=4,color='white',label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
-    newplot <- newplot + geom_text(data=cords,aes(x=X1,y=X2-1),size=4,color='black',label=sapply ( strsplit(plot$cords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
+#    newplot <- newplot + geom_text_background(data=coords,aes(x=X1,y=X2-1),bgfill='#000000',bgalpha=0.7,expand=2,size=4,color='white',label=sapply ( strsplit(plot$coords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
+    newplot <- newplot + geom_text(data=coords,aes(x=X1,y=X2-1),size=4,color='black',label=sapply ( strsplit(plot$coords$uniprot,' '), function(prots) { if (length(prots) > 0) { return(paste(getGeneNames(9606,prots)$symbol,collapse=' ')) } else { return("") } }  ))
   }
   newplot <- newplot + scale_info$scale + theme(legend.key.size = unit(0.25, "cm")) #+ scales[[1]]$legend + scales[[2]]$legend
   return(newplot)

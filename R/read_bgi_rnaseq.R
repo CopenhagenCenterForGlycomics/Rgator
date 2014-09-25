@@ -93,6 +93,11 @@ rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,adj.pval=0.05) {
 	subset(merge(diffs,metadata,all=T,by='geneid'),select=c('geneid','logFC','PValue','uniprot','genename'))
 }
 
+#' Get the biological coefficient of variation for a set of reads
+#'
+#' @param	all.reads	Reads as read in by \code{\link{rnaseq.readExpression}}
+#' @param	filtered	Toggle if there should be a filtering for minimum number of reads (default TRUE)
+#' @return	The biological coefficient of variation
 #' @export
 rnaseq.edgeR.getBCV <- function(all.reads,filtered=T,...) {
 	dge_analysis <- rnaseq.prepareDifferential.EdgeR(all.reads,filtered,...)
@@ -116,6 +121,14 @@ max_values <- function(df,fields,distance) {
 	expand.grid(fields,fields)
 }
 
+#' Perform a differential analysis on a set of expression values from RNAseq experiments
+#'
+#' @param	all.reads	Reads as read in by \code{\link{rnaseq.readExpression}}
+#' @param	filtered	Toggle if there should be a filtering for minimum number of reads (default TRUE)
+#' @param	clonal.variation.threshold	Threshold to drop genes if there is a log2 variation between clones. Set to NA to remove this filtering
+#' @param	pval.edger	EdgeR adjusted p-value cutoff for differential expression
+#' @param	pval.deseq	DESeq adjusted p-value cutoff for differential expression
+#' @return	Data.frame with geneid logFC PValue uniprot and genename
 #' @export
 rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.threshold=1,pval.edger=0.05,pval.deseq=0.1,...) {
 	dge_analysis <- rnaseq.prepareDifferential.EdgeR(all.reads,filtered,...)
@@ -142,6 +155,8 @@ rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.thresho
 	wanted
 }
 
+#' Read an expression file obtained from BGI
+#' @return Data frame with expression data
 #' @export
 rnaseq.readExpression <- function(filename) {
 	bgi_readBasicExpressionData(filename)

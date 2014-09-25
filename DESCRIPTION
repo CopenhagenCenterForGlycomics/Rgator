@@ -10,6 +10,7 @@ NeedsCompilation: no
 Imports:
   httr,
   plyr,
+  proto,
   data.table,
   network,
   intergraph,

@@ -1,14 +1,25 @@
 # @importFrom GO.db GOBPPARENTS GOCCPARENTS GOMFPARENTS
 # @importFrom AnnotationDbi toTable
 # @importFrom network set.edge.attribute set.vertex.attribute network.vertex.names
-goNetwork <- function(goids) {
+
+#' Create a GO network for a given set of GO identifiers
+#'
+#'  @param  goids     GO ids to use as the basis to build the network
+#'  @param  ancestors Number of ancestors to add to the graph to establish more remote connections
+#'  @return Network object with the GO network
+#'  @export
+getGONetwork <- function(goids,ancestors=4) {
+  goNetwork(goids,ancestors)
+}
+
+goNetwork <- function(goids,ancestors=4) {
   BP <- subset(AnnotationDbi::toTable(GO.db::GOBPPARENTS), RelationshipType %in% c('is_a','part_of'))
   CC <- subset(AnnotationDbi::toTable(GO.db::GOCCPARENTS), RelationshipType %in% c('is_a','part_of'))
   MF <- subset(AnnotationDbi::toTable(GO.db::GOMFPARENTS), RelationshipType %in% c('is_a','part_of'))
   go.vertices <- rbind(BP,CC,MF)
   names(go.vertices) <- c('left','right','relationship')
   if (!is.null(goids)) {
-    goids <- as.character( unique(c(goids, unlist(sapply( goids, function(x) { tail( getGOParents(x,ontology='BP'), 4 ) } )))) )
+    goids <- as.character( unique(c(goids, unlist(sapply( goids, function(x) { tail( getGOParents(x,ontology='BP'), ancestors ) } )))) )
     go.vertices <- subset(go.vertices,left %in% goids & right %in% goids)
   }
   net <- network::network( subset(as.data.frame(go.vertices),select=c(1,2)), directed=F )
@@ -17,6 +28,17 @@ goNetwork <- function(goids) {
   network::set.vertex.attribute(net,attrname='uniprot',value=as.character(sapply(network::network.vertex.names(net),function(id) { id })))
   net
 }
+
+#' Plot a GO network for a given set of GO identifiers
+#'
+#'  @param  goids     GO ids to use as the basis to build the network
+#'  @param  ancestors Number of ancestors to add to the graph to establish more remote connections
+#'  @return List containing two elements, plot: Containing the plot, and coords: Containing the co-ordinates of each protein
+#'  @export
+generateGONetwork <- function(goids,ancestors=4) {
+  ggnet(getGoNetwork(goids,ancestors))
+}
+
 
 make_wedges.go <- function(idx,total,start_radius,width,c_x,c_y,values,scales) {
   # Arguments:  Index around circle
@@ -58,11 +80,36 @@ make_wedges.go <- function(idx,total,start_radius,width,c_x,c_y,values,scales) {
 #5 GO:0000722 1.256583e-16 36.767949  1.296016    17   26 telomere maintenance via recombination rnaseq.t1.up
 #6 GO:0044770 1.281635e-16  4.647469 13.507184    51  275            cell cycle phase transition rnaseq.t1.up
 
-
+#' @rdname Rgator-deprecated
+#' @export
 overlayGOValues <- function(plot,goframe,label.terms=F,...) {
+  GOnetworkPlot.annotate(plot,goframe,label.terms,...)
+}
+
+
+#' Annotate a GO based network plot with data from a table of GO term datasource mappings
+#'
+#' Given a network plot obtained from  a GO network ( \code{\link{generateGONetwork}})
+#' overlay annotation information as a set of halos.
+#' @param plot      Result from \code{\link{generateGONetwork}}
+#' @param annotations     Data table with two columns - \code{GOID},\code{datasource}. Can also use GOBPID, GOCCID and GOMFID as GO identifier column
+#' @param label.terms     Toggle if the GO terms should be overlaid on the graph
+#' @param ...             Colours to use for each of the given datasources
+#' @export
+GOnetworkPlot.annotate <- function(plot,annotations=data.frame(GOID=c(),datasource=c()),label.terms=F,...) {
+  if ('GOBPID' %in% names(annotations) & ! 'GOID' %in% names(annotations)) {
+    annotations$GOID <- annotations$GOBPID
+  }
+  if ('GOMFID' %in% names(annotations) & ! 'GOID' %in% names(annotations)) {
+    annotations$GOID <- annotations$GOMFID
+  }
+  if ('GOCCID' %in% names(annotations) & ! 'GOID' %in% names(annotations)) {
+    annotations$GOID <- annotations$GOCCID
+  }
+
   getBiocLiteLib('GO.db')
   newplot <- plot$plot
-  coords <- plot$cords
+  coords <- plot$coords
   scales <- list(...)
   if (length(scales) < 1) {
     scales <-  list(
@@ -76,17 +123,17 @@ overlayGOValues <- function(plot,goframe,label.terms=F,...) {
       c("white","blue"),
       c("white","forestgreen")
     )
-    minlength <- length(scales) - length( unique(goframe$name) )
+    minlength <- length(scales) - length( unique(annotations$datasource) )
     if (minlength < 0) {
       minlength <- 0
     }
-    names(scales) <- c( head(unique(goframe$name),length(scales)), rep(NA, minlength) )
+    names(scales) <- c( head(unique(annotations$datasource),length(scales)), rep(NA, minlength) )
     scales <- scales[ which(! is.na(names(scales))) ]
   }
 
   grobs <- apply(subset(coords,uniprot != ''),1,function(rowdata) {
     goid <- rowdata['uniprot']
-    sources <- unique(subset(goframe,GOBPID==goid)$name)
+    sources <- unique(subset(annotations,GOID==goid)$datasource)
     return_data <- c()
     if (length(sources) < 1) {
       return (return_data)
@@ -103,7 +150,7 @@ overlayGOValues <- function(plot,goframe,label.terms=F,...) {
   if (label.terms) {
     mapping <- as.data.frame(AnnotationDbi::toTable(GO.db::GOTERM[coords$uniprot]))
     coords$terms <- plyr::mapvalues(coords$uniprot,from=mapping$go_id,to=mapping$Term,warn_missing=F)
-    newplot <- newplot + geom_text(data=subset(coords,uniprot %in% goframe$GOBPID),aes(x=X1,y=X2,label=terms),size=2,hjust=0 )
+    newplot <- newplot + geom_text(data=subset(coords,uniprot %in% annotations$GOID),aes(x=X1,y=X2,label=terms),size=2,hjust=0 )
   }
   return(newplot)
 }

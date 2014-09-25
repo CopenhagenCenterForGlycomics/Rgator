@@ -23,8 +23,16 @@ get_graphite_db <- function(db) {
 
 }
 
-#' @export
 # @importFrom graphite nodes
+#' Given sets of genes, find the common pathways that these genes belong to within Graphite
+#'
+#' @param organism          NCBI taxonomy ID for the organism that is being studied
+#' @param max_pathway_size  Maximum size of the pathway that should be checked
+#' @param ...               Lists of Entrez gene identifiers
+#' @return Data frame with columns pathway, db (indicating source DB) and the gene identifiers that are common to that pathway
+#' @examples
+#' findCommonPathways(organism=9606,max_pathway_size=1000,seta=c('1605'),setb=c('1605'))
+#' @export
 findCommonPathways.graphite <- function(organism=9606,max_pathway_size=30,...) {
   getBiocLiteLib('graphite')
   #require(graphite)

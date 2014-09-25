@@ -1,5 +1,12 @@
 # @importFrom httr GET
 # @importFrom httr content
+#' Retrieve the set of UniProt accessions for a given taxonomy ID
+#'
+#' Only get the identifiers for entries where they are part of a complete proteome set (keyword 1185)
+#' and are reviewed
+#'
+#' @param   taxonomy  NCBI taxonomy identifier to retrieve data for
+#' @return  Vector of string accessions
 #' @export
 getUniprotIds <- function(taxonomy) {
   # We should add an option to get unreviewed ids here too
@@ -19,10 +26,13 @@ getUniprotIds <- function(taxonomy) {
 # @importFrom httr content
 # @importFrom plyr ldply
 # @importFrom data.table rbindlist
+#' Retrieve UniProt sequences for a set of UniProt accessions
+#' @param   accessions   Uniprot accessions to retrieve sequence data for
+#' @return  Data frame with UniProt identifier and sequence
 #' @export
-getUniprotSequences <- function(accs,wait=0) {
-  if (length(accs) > 200) {
-    accgroups <- split(accs, ceiling(seq_along(accs)/200))
+getUniprotSequences <- function(accessions,wait=0) {
+  if (length(accessions) > 200) {
+    accgroups <- split(accessions, ceiling(seq_along(accessions)/200))
     accumulated_frame <- NULL
     pb <- txtProgressBar(min=0, max=length(accgroups),initial=0)
     for (i in seq_along(accgroups)) {
@@ -37,7 +47,7 @@ getUniprotSequences <- function(accs,wait=0) {
     close(pb)
     return (unique(accumulated_frame))
   }
-  wanted_accs <- accs
+  wanted_accs <- accessions
   cached <- loadParsedJson('UniProtData')
   if (dim(cached)[1] > 0) {
     assign("gator.UniProtData",cached, envir = .GlobalEnv)
@@ -49,13 +59,13 @@ getUniprotSequences <- function(accs,wait=0) {
     assign("gator.UniProtData",data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE), envir = .GlobalEnv)
   }
   if (length(wanted_accs) < 1) {
-    return (subset(gator.UniProtData, uniprot %in% accs ))
+    return (subset(gator.UniProtData, uniprot %in% accesssions ))
   }
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
   fastas <- httr::POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=RCurl::fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
   if (fastas$status_code != 200) {
     message("Could not retrieve ids")
-    return(unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
+    return(unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
   }
   contents <- httr::content(fastas,"text")
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
@@ -64,13 +74,13 @@ getUniprotSequences <- function(accs,wait=0) {
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   if (length(names(seqs)) < 2) {
     message("Could not retrieve sequences")
-    message(accs)
-    return (unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
+    message(accessions)
+    return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
   }
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
   assign('gator.UniProtData', data.table::rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
   writeParsedJson(gator.UniProtData,'UniProtData')
   Sys.sleep(wait)
-  return (unique(subset(gator.UniProtData, uniprot %in% tolower(accs) )))
+  return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
 }
