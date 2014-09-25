@@ -66,6 +66,15 @@ acceptToken <- function(json) {
   options(connection_key = json$data$connectionkey)
 }
 
+acceptPreferences <- function(json) {
+  if (json$data$connectionkey == getOption("connection_key")) {
+    fileConn<-file('auto.domaintoolsession')
+    writeLines(rjson::toJSON(json$data$preferences), fileConn)
+    close(fileConn)
+    message("Successfully received preferences from GlycoDomain viewer")
+  }
+}
+
 # @importFrom websockets daemonize
 # @importFrom websockets create_server
 # @importFrom websockets websocket_write
@@ -93,10 +102,17 @@ gatorConnector <- function() {
     }
   }
 
+  getPreferences <- function() {
+    websockets::websocket_write(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))), server$client_sockets[[1]])
+  }
+
   receiver <- function(DATA,WS,...) {
     json <- rjson::fromJSON(rawToChar(DATA))
     if (json$message == "token") {
       acceptToken(json)
+    }
+    if (json$message == "preferences") {
+      acceptPreferences(json)
     }
   }
 
@@ -116,7 +132,9 @@ gatorConnector <- function() {
   assign("alignProtein",align,envir = .GlobalEnv)
   assign("compactRenderer",compactRenderer,envir=.GlobalEnv)
   assign("stopConnector",stopConnector,envir=.GlobalEnv)
+  assign("getPreferences",getPreferences,envir=.GlobalEnv)
 }
+
 
 # @importFrom rjson fromJSON
 #' @export
@@ -279,7 +297,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   }
 
   message("Preparing to parse data")
-  if (!is.null(data$defaults$rKeys) && data$defaults$rKeys == c('base64')) {
+  if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) == 1 && 'base64' %in% data$defaults$rKeys) {
     all_prots <- names(data$data)
     names(all_prots) <- all_prots
     frame <- plyr::llply(all_prots,.fun=function(uprot) {
@@ -321,6 +339,8 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     names(frame) <- c('uniprot',data$defaults$rNames)
   }
   attributes(frame)$etag <- data$etag
+
+  frame$uniprot <- tolower(frame$uniprot)
 
   assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
 
