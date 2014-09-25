@@ -63,7 +63,7 @@ findCommonPathways.graphite <- function(organism=9606,max_pathway_size=30,...) {
           left_nodes <- subset( left, wantedkey %in% graphite::nodes(pw))
           right_nodes <- subset( right, wantedkey %in% graphite::nodes(pw))
           if (is.null(attributes(left)$listname) && nrow(right_nodes) > 0) {
-            names(right_nodes) <- c(sapply( c('geneid','uniprot','genename','uprotKey','entrezKey'), function(x) { paste(x,attributes(right)$listname,sep='.')}),'wantedkey')
+            names(right_nodes) <- c(sapply( c('geneid','genename','uniprot','uprotKey','entrezKey'), function(x) { paste(x,attributes(right)$listname,sep='.')}),'wantedkey')
           }
           left <- merge(left_nodes,right_nodes,by='wantedkey',allow.cartesian=T,suffixes=c(paste('.',attributes(left)$listname,sep=''),paste('.',attributes(right)$listname,sep='')))
           if (nrow(left) > 0) {
