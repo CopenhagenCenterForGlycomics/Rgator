@@ -1,12 +1,27 @@
 Package: Rgator
 Type: Package
-Title: Connector Package to GlycoDomainViewer
+Title: GlycoDomainViewer analysis toolbox
 Version: 1.0
 Date: 2013-10-14
 Author: Hiren Joshi
 Maintainer: Hiren Joshi <Rgator@glycocode.com>
 Description: Connector Package to the GlycoDomainViewer
-Depends: httr, plyr, data.table, RCurl, rjson, ggplot2, VennDiagram, gridExtra
-Imports: plyr, data.table, rjson, ggplot2, VennDiagram, gridExtra, jsonlite
+NeedsCompilation: no
+Imports:
+  httr,
+  plyr,
+  proto,
+  data.table,
+  network,
+  intergraph,
+  colbycol,
+  scales,
+  RCurl,
+  rjson,
+  grid,
+  gridExtra,
+  VennDiagram,
+  gridExtra,
+  jsonlite
 Suggests: websockets
 License: TBD
