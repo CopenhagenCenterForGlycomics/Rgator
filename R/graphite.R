@@ -46,8 +46,8 @@ findCommonPathways.graphite <- function(organism=9606,max_pathway_size=30,...) {
   for (name in names(path.list)) {
     attributes(path.list[[name]])$listname <- name
   }
-  path_results <- rbindlist( lapply( c('reactome', 'biocarta', 'kegg','nci', 'spike', 'humancyc','panther' ), function(db) {
-    res <- ldply(get_graphite_db(db),function(pw) {
+  path_results <- data.table::rbindlist( lapply( c('reactome', 'biocarta', 'kegg','nci', 'spike', 'humancyc','panther' ), function(db) {
+    res <- plyr::ldply(get_graphite_db(db),function(pw) {
       my.path.list <- path.list
       keyname <- "uprotKey"
       if (grepl("Entrez", graphite::nodes(pw)[1])) {
