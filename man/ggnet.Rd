@@ -80,6 +80,6 @@ ggnet(cities, mode = "kamadakawai", alpha = .2, node.group = type,
 Hiren Joshi, Moritz Marbach \email{mmarbach@mail.uni-mannheim.de} and François Briatte \email{f.briatte@ed.ac.uk}
 }
 \seealso{
-\code{\link{gplot}} in the \link{sna} package
+\code{\link[sna]{gplot}}
 }
 

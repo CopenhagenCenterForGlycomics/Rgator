@@ -1,5 +1,4 @@
-#' Given sets of genes, find the common pathways that these genes belong to
-#'
+#' Given sets of genes, find the common pathways that these genes belong to.
 #' This looks within ReactomeDB, and Graphite (encompassing many other databases)
 #' @param organism          NCBI taxonomy ID for the organism that is being studied
 #' @param max_pathway_size  Maximum size of the pathway that should be checked
