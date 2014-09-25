@@ -29,7 +29,7 @@ generateStringNetwork <- function(organism=9606,accessions=c('q14118','P24043'),
 #'  @param  threshold   Minimum threshold for the combined score criteria for addition to the graph
 #'  @return A network class object
 #'  @export
-#'  @seealso \code{\link{network}} \code{\link{STRINGdb}} \code{\link{ggnet}}
+#'  @seealso \code{\link[network]{network}} \code{\link[STRINGdb]{STRINGdb}} \code{\link{ggnet}}
 getStringNetwork <- function(organism=9606,accessions=c(),get.neighbours=F,threshold=700) {
   getBiocLiteLib('STRINGdb')
   string_db <- STRINGdb::STRINGdb$new(species=organism,version="9_05",score_threshold=threshold)

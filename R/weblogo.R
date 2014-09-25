@@ -1,13 +1,4 @@
-#' Replace CDD identifiers with cluster identifiers
-#'
-#' By default, methods on the CDD data sources use the
-#' cddid as the identifier for a domain. We can use the
-#' cluster identifier as an alternative if we wish to
-#' group similar domains.
-#'
-#' This method connects to the CDD to download the
-#' family to superfamily links for the database, and
-#' caches this file locally.
+#'  Generate a Berry plot for a set of sequences
 #'
 #'  @param   dataframe  Data frame containing at least one column (windowcol) that has the windows to plot
 #'  @param   windowcol  Column in the dataframe to look for window sequences
