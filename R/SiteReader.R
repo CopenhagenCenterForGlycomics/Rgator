@@ -125,7 +125,7 @@ gatorConnector <- function() {
     if (length(gator.sockets) > 0) {
         sock <- gator.sockets[1]
         if (! is.null(sock)) {
-          sock.send(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))))
+          sock$send(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))))
         }
     }
   }
