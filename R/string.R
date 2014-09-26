@@ -32,6 +32,7 @@ generateStringNetwork <- function(organism=9606,accessions=c('q14118','P24043'),
 #'  @seealso \code{\link[network]{network}} \code{\link[STRINGdb]{STRINGdb}} \code{\link{ggnet}}
 getStringNetwork <- function(organism=9606,accessions=c(),get.neighbours=F,threshold=700) {
   getBiocLiteLib('STRINGdb')
+  require('igraph')
   string_db <- STRINGdb::STRINGdb$new(species=organism,version="9_05",score_threshold=threshold)
   all_string_proteins <- string_db$get_proteins()$protein_external_id
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')

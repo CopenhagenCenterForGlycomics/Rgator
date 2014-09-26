@@ -23,6 +23,7 @@ Imports:
   gridExtra,
   httpuv,
   ggplot2,
+  sna,
   jsonlite
 Suggests: colbycol
 License: TBD
