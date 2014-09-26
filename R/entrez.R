@@ -2,7 +2,7 @@
 #'
 # @importFrom AnnotationDbi toTable
 #' @export
-getEntrezIds <- function(organism,ids) {
+getEntrezIds <- function(organism=9606,ids) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
@@ -21,7 +21,7 @@ getEntrezIds <- function(organism,ids) {
 #' Get Gene names for a set of UniProt identifiers
 #'
 #' @export
-getGeneNames <- function(organism,ids) {
+getGeneNames <- function(organism=9606,ids) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
@@ -46,7 +46,7 @@ getGeneNames <- function(organism,ids) {
 #'
 # @importFrom AnnotationDbi select
 #' @export
-convertEntrezIds <- function(organism,ids=c()) {
+convertEntrezIds <- function(organism=9606,ids=c()) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
