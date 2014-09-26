@@ -123,8 +123,8 @@ gatorConnector <- function() {
 
   getPreferences <- function() {
     if (length(gator.sockets) > 0) {
+        sock <- gator.sockets[1]
         if (! is.null(sock)) {
-          sock <- gator.sockets[1]
           sock.send(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))))
         }
     }
