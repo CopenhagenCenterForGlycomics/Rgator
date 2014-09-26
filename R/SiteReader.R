@@ -56,8 +56,8 @@ getPreferences <- function(prefsId='0B5L9OYFFMK3dcmlBbUY3SXdHMk0') {
 
 # @importFrom rjson fromJSON
 # @importFrom websockets websocket_write
-askForSignin <- function(WS) {
-  websockets::websocket_write(rjson::toJSON(list(message="upgradeConnection",data=getOption("connection_key"))), WS)
+askForSignin <- function(socket) {
+  socket$send(rjson::toJSON(list(message="upgradeConnection",data=getOption("connection_key"))))
 }
 
 acceptToken <- function(json) {
@@ -83,31 +83,55 @@ acceptPreferences <- function(json) {
 # @importFrom websockets setCallback
 #' @export
 gatorConnector <- function() {
-  server = websockets::create_server(port=8880)
-  websockets::daemonize(server)
+  assign('gator.sockets',list(), envir = .GlobalEnv)
+  server <- httpuv::startDaemonizedServer(host='0.0.0.0',port=8880,list(onWSOpen=function(ws) {
+    gator.sockets[[length(gator.sockets) + 1]] <- ws
+    socket_id <- length(gator.sockets)
+    assign('gator.sockets',gator.sockets, envir = .GlobalEnv)
+    ws$onMessage(function(binary,data) {
+      receiver(data)
+    })
+    askForSignin(ws)
+    ws$onClose(function() {
+      gator.sockets[[socket_id]] <- NULL
+      assign('gator.sockets',gator.sockets, envir = .GlobalEnv)
+    })
+  }))
 
   view <- function(prot) {
-    if (length(server$client_sockets) > 0) {
-      websockets::websocket_write(rjson::toJSON(list(message="showProtein", data=unique(prot))), server$client_sockets[[1]])
+    message(length(gator.sockets))
+    for (sock in gator.sockets) {
+      if (! is.null(sock)) {
+        sock$send(rjson::toJSON(list(message="showProtein", data=unique(prot))))
+      }
     }
   }
   align <- function(prot) {
-    if (length(server$client_sockets) > 0) {
-      websockets::websocket_write(rjson::toJSON(list(message="alignProtein", data=unique(prot))), server$client_sockets[[1]])
+    for (sock in gator.sockets) {
+      if (! is.null(sock)) {
+        sock$send(rjson::toJSON(list(message="alignProtein", data=unique(prot))))
+      }
     }
   }
   compactRenderer <- function() {
-    if (length(server$client_sockets) > 0) {
-      websockets::websocket_write(rjson::toJSON(list(message="compactRenderer", data="")), server$client_sockets[[1]])
+    for (sock in gator.sockets) {
+      if (! is.null(sock)) {
+        sock$send(rjson::toJSON(list(message="compactRenderer", data="")))
+      }
     }
   }
 
   getPreferences <- function() {
-    websockets::websocket_write(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))), server$client_sockets[[1]])
+    if (length(gator.sockets) > 0) {
+        if (! is.null(sock)) {
+          sock <- gator.sockets[1]
+          sock.send(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))))
+        }
+    }
   }
 
-  receiver <- function(DATA,WS,...) {
-    json <- rjson::fromJSON(rawToChar(DATA))
+  receiver <- function(DATA) {
+    json <- rjson::fromJSON(DATA)
     if (json$message == "token") {
       acceptToken(json)
     }
@@ -116,11 +140,9 @@ gatorConnector <- function() {
     }
   }
 
-  websockets::setCallback("receive",receiver,server)
-  websockets::setCallback("established", askForSignin, server)
 
   stopConnector <- function() {
-    websockets::websocket_close(server)
+    httpuv::stopDaemonizedServer(server)
     options(current_token = NULL)
     options(connection_key = NULL)
     rm("stopConnector",envir=.GlobalEnv)

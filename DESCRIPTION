@@ -14,7 +14,6 @@ Imports:
   data.table,
   network,
   intergraph,
-  colbycol,
   scales,
   RCurl,
   rjson,
@@ -22,6 +21,7 @@ Imports:
   gridExtra,
   VennDiagram,
   gridExtra,
+  httpuv
   jsonlite
-Suggests: websockets
+Suggests: colbycol
 License: TBD
