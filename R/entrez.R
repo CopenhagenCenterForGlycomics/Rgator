@@ -7,7 +7,7 @@ getEntrezIds <- function(organism=9606,ids) {
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
   uprotmap <- sub("\\.db","UNIPROT",dbname)
-  uprots <- unique(intersect(  toupper(ids),mappedRkeys(get(uprotmap,asNamespace(dbname)))))
+  uprots <- unique(intersect(  toupper(ids),AnnotationDbi::mappedRkeys(get(uprotmap,asNamespace(dbname)))))
   entrez_ids <- AnnotationDbi::toTable(revmap(get(uprotmap,asNamespace(dbname)))[  uprots ])
   if ("systematic_name" %in% names(entrez_ids)) {
     entrez_ids <- subset(merge(entrez_ids,AnnotationDbi::toTable(get(sub("\\.db","ENTREZID",dbname),asNamespace(dbname))[]),by='systematic_name'),select=c('gene_id','uniprot_id'))

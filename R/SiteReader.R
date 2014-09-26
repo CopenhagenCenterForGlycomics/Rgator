@@ -480,14 +480,13 @@ uniqueframe <- function(set){
 }
 
 getBiocLiteLib <- function(dbname) {
-  if ( ! library(dbname,character.only=TRUE,logical.return=TRUE,quietly=TRUE)) {
+  if ( ! suppressWarnings(require(dbname,character.only=TRUE,quietly=TRUE))) {
     if ( gator.biocLite.stdlib) {
       biocLite(dbname)
       return
     }
   }
-
-  if ( ! suppressMessages(library(dbname,lib.loc=c(gator.cache),character.only=TRUE,logical.return=TRUE,quietly=TRUE)))  {
+  if ( ! suppressWarnings(require(dbname,lib.loc=c(gator.cache),character.only=TRUE,quietly=TRUE)))  {
     if (! gator.biocLite.stdlib) {
       biocLite(dbname,lib=gator.cache)
       return
