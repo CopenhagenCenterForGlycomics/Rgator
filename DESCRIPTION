@@ -22,6 +22,7 @@ Imports:
   VennDiagram,
   gridExtra,
   httpuv,
+  ggplot2,
   jsonlite
 Suggests: colbycol
 License: TBD
