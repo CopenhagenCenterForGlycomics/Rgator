@@ -222,11 +222,11 @@ downloadUniprotGOA <- function(organism=9606) {
   proteomes <- list('10029'='264824.C_griseus', '9823'='35497.S_scrofa.goa')
   if (organism %in% names(organisms)) {
     species<-organisms[[organism]]
-    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/",toupper(species),"/gene_association.goa_",species,".gz",sep=''),paste("goa-",species,sep=""),gzip=T,comment.char='!')[,c(2,5,7,9)]
+    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/",toupper(species),"/gene_association.goa_",species,".gz",sep=''),paste("goa-",species,sep=""),gzip=T,stringsAsFactors=F,comment.char='!')[,c(2,5,7,9)]
   }
   if (organism %in% names(proteomes)) {
     species<-proteomes[[organism]]
-    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/proteomes/",species,".goa",sep=''), gzip=F,comment.char='!')[,c(2,5,7,9)]
+    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/proteomes/",species,".goa",sep=''),gzip=F,stringsAsFactors=F,comment.char='!')[,c(2,5,7,9)]
   }
   if (is.null(uniprot.goa)) {
     message("Invalid organism")
