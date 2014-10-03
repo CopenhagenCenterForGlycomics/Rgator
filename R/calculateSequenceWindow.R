@@ -14,7 +14,7 @@
 #'    calculateSequenceWindow(df,'site',2)
 #'  @export
 calculateSequenceWindow <- function(dataframe,sitecol,window) {
-  with_seqs <- merge(dataframe,gator.UniProtData,by='uniprot')
+  with_seqs <- unique(merge(dataframe,gator.UniProtData,by='uniprot'))
   with_seqs[[sitecol]] <- as.numeric(with_seqs[[sitecol]])
   with_seqs$endpos <- nchar(with_seqs$sequence) - with_seqs[[sitecol]] - window
   with_seqs$startpos <- with_seqs[[sitecol]] - window
