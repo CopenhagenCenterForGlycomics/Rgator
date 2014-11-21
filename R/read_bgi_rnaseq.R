@@ -70,18 +70,18 @@ rnaseq.prepareDifferential.EdgeR <- function(all.reads,filtered=T,...) {
 	y
 }
 
-rnaseq.getDifferentialGenes.DESeq <- function(deseq,up=T,adj.pval=0.1) {
+rnaseq.getDifferentialGenes.DESeq <- function(deseq,up=T,adj.pval=0.1,taxonomy=9606) {
 	conds = as.character(unique(conditions(deseq)))
 	res = nbinomTest( deseq, conds[1], conds[2] )
 	res = res[ res$padj <= adj.pval, ]
 	names(res)[1] <- 'geneid'
-	metadata<- convertEntrezIds(9606,res$geneid)
+	metadata<- convertEntrezIds(taxonomy,res$geneid)
 	retvals <- subset( merge(res,metadata,all=T,by='geneid'),select=c('geneid','log2FoldChange','pval','uniprot','genename'))
 	names(retvals) <- c('geneid','logFC','PValue','uniprot','genename')
 	retvals
 }
 
-rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,adj.pval=0.05) {
+rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,adj.pval=0.05,taxonomy=9606) {
 	et <- edgeR::exactTest(edgeR,pair=as.character(unique(edgeR$samples$group)))
 	if (up) {
 		diffs <- et$table[which(decideTestsDGE(et,p=adj.pval,adjust="BH") > 0),]
@@ -89,7 +89,7 @@ rnaseq.getDifferentialGenes.EdgeR <- function(edgeR,up=T,adj.pval=0.05) {
 		diffs <- et$table[which(decideTestsDGE(et,p=adj.pval,adjust="BH") < 0),]
 	}
 	diffs$geneid <- rownames(diffs)
-	metadata<- convertEntrezIds(9606,rownames(diffs))
+	metadata<- convertEntrezIds(taxonomy,rownames(diffs))
 	subset(merge(diffs,metadata,all=T,by='geneid'),select=c('geneid','logFC','PValue','uniprot','genename'))
 }
 
@@ -105,16 +105,16 @@ rnaseq.edgeR.getBCV <- function(all.reads,filtered=T,...) {
 }
 
 #' @export
-rnaseq.edgeR.getDifferential <- function(all.reads,filtered=T,pval=0.05,...) {
+rnaseq.edgeR.getDifferential <- function(all.reads,filtered=T,pval=0.05,taxonomy=9606,...) {
 	dge_analysis <- rnaseq.prepareDifferential.EdgeR(all.reads,filtered,...)
-	rbind( rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=T,pval), rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=F,pval))
+	rbind( rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=T,pval,taxonomy), rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=F,pval,taxonomy))
 }
 
 
 #' @export
-rnaseq.DESeq.getDifferential <- function(all.reads,filtered=T,pval=0.1,...) {
+rnaseq.DESeq.getDifferential <- function(all.reads,filtered=T,pval=0.1,taxonomy=9606,...) {
 	deseq_analysis <- rnaseq.prepareDifferential.DESeq(all.reads,filtered,...)
-	rbind( rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=T,pval), rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=F,pval))
+	rbind( rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=T,pval,taxonomy), rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=F,pval,taxonomy))
 }
 
 max_values <- function(df,fields,distance) {
@@ -130,7 +130,7 @@ max_values <- function(df,fields,distance) {
 #' @param	pval.deseq	DESeq adjusted p-value cutoff for differential expression
 #' @return	Data.frame with geneid logFC PValue uniprot and genename
 #' @export
-rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.threshold=1,pval.edger=0.05,pval.deseq=0.1,...) {
+rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.threshold=1,pval.edger=0.05,pval.deseq=0.1,taxonomy=9606,...) {
 	dge_analysis <- rnaseq.prepareDifferential.EdgeR(all.reads,filtered,...)
 	deseq_analysis <- rnaseq.prepareDifferential.DESeq(all.reads,filtered,...)
 	logrpkms <- rpkm(dge_analysis,as.numeric(dge_analysis$genes$Length),log=T,prior.count=2)
@@ -146,10 +146,10 @@ rnaseq.getDifferential <- function(all.reads,filtered=T,clonal.variation.thresho
 		}
 	}
 	rpkm_wanted <- rownames(logrpkms)
-	edger.up <- rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=T,pval.edger)
-	edger.down <- rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=F,pval.edger)
-	deseq.up <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=T,pval.deseq)
-	deseq.down <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=F,pval.deseq)
+	edger.up <- rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=T,pval.edger,taxonomy)
+	edger.down <- rnaseq.getDifferentialGenes.EdgeR(dge_analysis,up=F,pval.edger,taxonomy)
+	deseq.up <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=T,pval.deseq,taxonomy)
+	deseq.down <- rnaseq.getDifferentialGenes.DESeq(deseq_analysis,up=F,pval.deseq,taxonomy)
 
 	wanted <- rbind ( subset(edger.up,geneid %in% intersect(rpkm_wanted, deseq.up$geneid) ) , subset(edger.down,geneid %in% intersect(rpkm_wanted, deseq.down$geneid ) ) )
 	wanted

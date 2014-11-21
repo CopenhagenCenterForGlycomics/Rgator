@@ -5,7 +5,7 @@
 \usage{
 rnaseq.getDifferential(all.reads, filtered = T,
   clonal.variation.threshold = 1, pval.edger = 0.05, pval.deseq = 0.1,
-  ...)
+  taxonomy = 9606, ...)
 }
 \arguments{
 \item{all.reads}{Reads as read in by \code{\link{rnaseq.readExpression}}}

@@ -62,7 +62,7 @@ retrieveGOTerms <- function(organism=9606,uniprots) {
     terms <- merge( terms, data.frame(gene_id=query_ids,uniprot=tolower(names(query_ids))), by='gene_id')
   }
   if (dim(terms)[1] > 0) {
-    go_terms <- (select(GO.db::GO.db, terms$go_id,"TERM"))
+    go_terms <- (select(GO.db::GO.db, as.character(terms$go_id),"TERM"))
     names(go_terms) <- c('go_id','term')
     terms <- merge( terms, go_terms, by='go_id')
     terms <- uniqueframe(terms)

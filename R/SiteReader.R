@@ -182,6 +182,7 @@ syncDatasets <- function() {
 
 # @importFrom plyr ldply
 jsonParser <- function(data,keys) {
+  options(stringsAsFactors = FALSE)
   currkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key))>0) { strsplit(key,".",fixed=TRUE)[[1]][1] } }))
   currkeys <- unlist(currkeys[!sapply(currkeys,is.null)])
 
@@ -373,7 +374,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
 loadParsedJson <- function(title) {
   filename <- file.path(gator.cache,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
-  frame <- data.frame()
+  frame <- data.frame(stringsAsFactors=F)
 
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")

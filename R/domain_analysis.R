@@ -43,11 +43,14 @@ getDomainSets <- function( inputsites, sitecol, domaindata,  max_dom_proportion=
 }
 
 #' @export
-downloadDomains <- function(organism=c('9060')) {
-  if ("9060" %in% organism) {
+downloadDomains <- function(...) {
+  organism = as.character(list(...))
+  if ("9606" %in% organism) {
     downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
   }
-  downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',organism,'/',sep=''),list(type='gatorURL',title=paste('domains.',organism,sep='')))
+  sapply( organism[organism != '9606'], function(org) {
+    downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',org,'/',sep=''),list(type='gatorURL',title=paste('domains.',org,sep='')))
+  })
 }
 
 #' Divide up sets of sites based on their site context
