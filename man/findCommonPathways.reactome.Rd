@@ -3,7 +3,8 @@
 \alias{findCommonPathways.reactome}
 \title{Given sets of genes, find the common pathways that these genes belong to within ReactomeDB}
 \usage{
-findCommonPathways.reactome(organism = 9606, max_pathway_size = 80, ...)
+findCommonPathways.reactome(organism = 9606, max_pathway_size = 80,
+  names = FALSE, ...)
 }
 \arguments{
 \item{organism}{NCBI taxonomy ID for the organism that is being studied}

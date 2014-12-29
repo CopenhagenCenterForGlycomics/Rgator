@@ -24,7 +24,7 @@ reactome.total_count <- function(pathid) {
 #' @examples
 #' findCommonPathways(organism=9606,max_pathway_size=1000,seta=c('1605'),setb=c('1605'))
 #' @export
-findCommonPathways.reactome <- function(organism=9606,max_pathway_size=80,...) {
+findCommonPathways.reactome <- function(organism=9606,max_pathway_size=80,names=FALSE,...) {
   getBiocLiteLib('reactome.db')
   genesets <- list(...)
   path.list <- sapply(genesets,function(genelist) {
@@ -46,7 +46,9 @@ findCommonPathways.reactome <- function(organism=9606,max_pathway_size=80,...) {
     left
   }, path.list )
   mergeddata$db <- rep('reactomedb',nrow(mergeddata))
-  rownames(mergeddata) <- mergeddata$reactomeid
+  if (names) {
+    rownames(mergeddata) <- mergeddata$reactomeid
+  }
   mergeddata$reactomeid<- NULL
   mergeddata
 }
