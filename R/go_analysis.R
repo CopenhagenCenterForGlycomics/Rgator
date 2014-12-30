@@ -1,3 +1,9 @@
+removeFactors <- function(df) {
+  i <- sapply(df, is.factor)
+  df[i] <- lapply(df[i], as.character)
+  df
+}
+
 #' Get the genes that contributed to a particular enrichment of a set of terms
 #'
 #' @param   enrichment  Enrichment obtained from \code{\link{getGOEnrichment}}
@@ -46,11 +52,11 @@ retrieveGOTerms <- function(organism=9606,uniprots) {
   query_ids <- getEntrezIds(organism,uniprots)
   if (as.character(organism) == '4932') {
     entrez_ids <- query_ids
-    entrez_mapping <- AnnotationDbi::toTable(revmap(org.Sc.sgd.db::org.Sc.sgdENTREZID)[query_ids])
+    entrez_mapping <- removeFactors(AnnotationDbi::toTable(revmap(org.Sc.sgd.db::org.Sc.sgdENTREZID)[query_ids]))
     query_ids <- unlist(entrez_mapping[1])
   }
   godb <- get( sub("\\.db","GO",organisms[as.character(organism)] ), envir=get(unlist( organisms[as.character(organism)])))
-  terms <- AnnotationDbi::toTable(godb[query_ids])
+  terms <- removeFactors(AnnotationDbi::toTable(godb[query_ids]))
   names(terms) <- c('gene_id','go_id','Evidence','Ontology')
   if (as.character(organism) == '4932') {
     names(terms) <- c('systematic_name','go_id','Evidence','Ontology')
@@ -96,7 +102,7 @@ getGOParents <- function(node = "GO:0008150", ontology = "BP") {
     while (any(!is.na(kids))) {
         # Get the unique children of the parents (that aren't NA)
         #children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
-        parents <- unique(unlist(AnnotationDbi::toTable(GOPARENTS[kids[!is.na(kids)]])[2]))
+        parents <- unique(unlist( removeFactors(AnnotationDbi::toTable(GOPARENTS[kids[!is.na(kids)]]))[2]))
         # append chldren to beginning of `out`
         # unique will keep the first instance of a duplicate
         # (i.e. the most recent child is kept)
@@ -135,7 +141,7 @@ getGOChildren <- function(node = "GO:0008150", ontology = "BP") {
     while (any(!is.na(parents))) {
         # Get the unique children of the parents (that aren't NA)
         #children <- unique(unlist(mget(parents[!is.na(parents)], envir=GOCHILDREN)))
-        children <- unique(unlist(AnnotationDbi::toTable(GOCHILDREN[parents[!is.na(parents)]])[1]))
+        children <- unique(unlist(removeFactors(AnnotationDbi::toTable(GOCHILDREN[parents[!is.na(parents)]]))[1]))
 
         # append chldren to beginning of `out`
         # unique will keep the first instance of a duplicate
@@ -178,7 +184,7 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
   }
   if (as.character(organism) == '4932' & length(query_ids) > 0) {
     entrez_ids <- query_ids
-    entrez_mapping <- AnnotationDbi::toTable(revmap(org.Sc.sgdENTREZID)[query_ids])
+    entrez_mapping <- removeFactors(AnnotationDbi::toTable(revmap(org.Sc.sgdENTREZID)[query_ids]))
     query_ids <- unlist(entrez_mapping[1])
   }
 
@@ -200,7 +206,7 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
              )
   } else {
     library("GSEABase")
-    super_terms = subset( unique(rbind ( as.data.frame(AnnotationDbi::toTable( get( sub("\\.db","GO", dbname),asNamespace(dbname) )  )), supplemental.terms)), Ontology==ontology)
+    super_terms = subset( unique(rbind ( removeFactors( as.data.frame(AnnotationDbi::toTable( get( sub("\\.db","GO", dbname),asNamespace(dbname) ) ))), supplemental.terms)), Ontology==ontology)
     frame=GOFrame(data.frame(super_terms$go_id, super_terms$Evidence, super_terms$gene_id),organism=as.character(organism))
     allFrame=GOAllFrame(frame)
     gsc <- GeneSetCollection(allFrame, setType = GOCollection())
@@ -241,6 +247,19 @@ downloadUniprotGOA <- function(organism=9606) {
   return (uniprot.goa)
 }
 
+#' Get a list of potentially cytosolic proteins from uniprot identifiers
+#' Simple check that sees if there are only cytosolic related terms associated
+#' with a given identifier
+#' @param   organism  NCBI taxonomy id (e.g. 9606) to get terms for
+#' @param   uniprots  UniProt identifiers to check for cytosolic
+#' @return  Vector of UniProt identifiers
+#' @export
+getCytosolic <- function(organism,uniprots) {
+  tabled_terms <- getGOTerms(organism,unique(uniprots),wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829'),ontology='CC')
+  potential_cytosol <- as.character(unique(subset(tabled_terms,term %in% c('nucleus','vacuole','cytosol'))$uniprot))
+  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol'))$uniprot
+  potential_cytosol[ ! potential_cytosol %in% potential_extracellular ]
+}
 
 #' @rdname Rgator-deprecated
 #' @export

@@ -13,9 +13,9 @@ getGONetwork <- function(goids,ancestors=4) {
 }
 
 goNetwork <- function(goids,ancestors=4) {
-  BP <- subset(AnnotationDbi::toTable(GO.db::GOBPPARENTS), RelationshipType %in% c('is_a','part_of'))
-  CC <- subset(AnnotationDbi::toTable(GO.db::GOCCPARENTS), RelationshipType %in% c('is_a','part_of'))
-  MF <- subset(AnnotationDbi::toTable(GO.db::GOMFPARENTS), RelationshipType %in% c('is_a','part_of'))
+  BP <- subset( removeFactors(AnnotationDbi::toTable(GO.db::GOBPPARENTS)), RelationshipType %in% c('is_a','part_of'))
+  CC <- subset( removeFactors(AnnotationDbi::toTable(GO.db::GOCCPARENTS)), RelationshipType %in% c('is_a','part_of'))
+  MF <- subset( removeFactors(AnnotationDbi::toTable(GO.db::GOMFPARENTS)), RelationshipType %in% c('is_a','part_of'))
   go.vertices <- rbind(BP,CC,MF)
   names(go.vertices) <- c('left','right','relationship')
   if (!is.null(goids)) {
@@ -148,7 +148,7 @@ GOnetworkPlot.annotate <- function(plot,annotations=data.frame(GOID=c(),datasour
   }
   newplot <- newplot + scale_color_manual(values=sapply(scales,function(x) { x[2] },USE.NAMES=T)) + scale_fill_manual(values=sapply(scales,function(x) { x[1] },USE.NAMES=T))
   if (label.terms) {
-    mapping <- as.data.frame(AnnotationDbi::toTable(GO.db::GOTERM[coords$uniprot]))
+    mapping <- removeFactors(as.data.frame(AnnotationDbi::toTable(GO.db::GOTERM[coords$uniprot])))
     coords$terms <- plyr::mapvalues(coords$uniprot,from=mapping$go_id,to=mapping$Term,warn_missing=F)
     newplot <- newplot + geom_text(data=subset(coords,uniprot %in% annotations$GOID),aes(x=X1,y=X2,label=terms),size=2,hjust=0 )
   }
