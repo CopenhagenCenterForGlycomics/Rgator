@@ -50,7 +50,10 @@ getStringNetwork <- function(organism=9606,accessions=c(),get.neighbours=F,thres
   # object, retrieve out the ENSEMBL identifiers, and then convert them across to UniProt ids, appending
   # to the id_mappings data frame.
   if (get.neighbours) {
-    neighbours <- string_db$get_neighbors(id_mappings$STRING_id)
+    in_subnetwork <- intersect( id_mappings$STRING_id, intergraph::asDF(string_db$get_subnetwork(id_mappings$STRING_id))$vertexes$name)
+
+
+    neighbours <- string_db$get_neighbors(in_subnetwork)
     neighbour_mappings <- AnnotationDbi::select(get(dbname),columns=c('UNIPROT','ENSEMBLPROT'),keys=gsub(paste(organism,'.',sep=''),"",neighbours),keytype='ENSEMBLPROT')
     neighbour_mappings$ENSEMBLPROT <- sapply ( neighbour_mappings$ENSEMBLPROT, function(x) { paste(paste(organism,'.',sep=''),x,sep='') })
     names(neighbour_mappings) <- c('STRING_id','uniprot')
