@@ -214,6 +214,10 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
                              geneSetCollection=gsc, geneIds = query_ids, universeGeneIds = unlist(universe),
                              ontology = ontology, pvalueCutoff = 0.05, conditional = conditional, testDirection =  direction)
   }
+
+  # Reference for info on multiple testing correction, and why we don't do it:
+  # https://stat.ethz.ch/pipermail/bioconductor/2008-January/020690.html
+
   hgOver <- hyperGTest(params)
   return (hgOver)
 }

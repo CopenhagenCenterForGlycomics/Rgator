@@ -84,10 +84,10 @@ prepare_string_ids <- function(string_db,organism=9606,accessions=c(),get.neighb
   return(id_mappings)
 }
 
-getStringClusters <- function(organism=9606,accessions=c(),get.neighbours=F,threshold=700,total.clusters=NA,algorithm=NA,...) {
+getStringClusters <- function(organism=9606,accessions=c(),version="9_1",get.neighbours=F,threshold=700,total.clusters=NA,algorithm=NA,...) {
   getBiocLiteLib('STRINGdb')
   require('igraph')
-  string_db <- STRINGdb::STRINGdb$new(species=organism,version="9_1",score_threshold=threshold)
+  string_db <- STRINGdb::STRINGdb$new(species=organism,version=version,score_threshold=threshold)
 
   id_mappings <- prepare_string_ids(string_db,organism,accessions,get.neighbours)
 
