@@ -236,7 +236,7 @@ downloadUniprotGOA <- function(organism=9606) {
   }
   if (organism %in% names(proteomes)) {
     species<-proteomes[[organism]]
-    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/proteomes/",species,".goa",sep=''),gzip=F,stringsAsFactors=F,comment.char='!')[,c(2,5,7,9)]
+    uniprot.goa <- cacheFile( paste("ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/proteomes/",species,".goa",sep=''),paste("goa-",species,sep=""),gzip=F,stringsAsFactors=F,comment.char='!')[,c(2,5,7,9)]
   }
   if (is.null(uniprot.goa)) {
     message("Invalid organism")
