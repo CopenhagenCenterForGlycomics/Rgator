@@ -320,6 +320,14 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   }
 
   message("Preparing to parse data")
+
+  parserFunction = jsonParser
+
+  if ('metadata' %in% names(data) && 'msdata-version' %in% data$metadata) {
+    parserFunction = chooseMsDataParser(data$metadata$msdata-version)
+  }
+
+
   if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) == 1 && 'base64' %in% data$defaults$rKeys) {
     all_prots <- names(data$data)
     names(all_prots) <- all_prots
@@ -335,7 +343,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   } else if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
     all_prots <- names(data$data)
     frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
-      frm <- jsonParser(data$data[[uprot]],data$defaults$rKeys )
+      frm <- parserFunction(data$data[[uprot]],data$defaults$rKeys )
 
       # We should get a data frame out from the jsonParser - attach the uniprot id as
       # another column into the data frame
@@ -435,8 +443,14 @@ testParseJson <- function(filename) {
     etag <- origData$etag
   }
   all_prots <- names(origData$data)
+  parserFunction = jsonParser
+
+  if ( 'metadata' %in% names(origData) && 'msdata-version' %in% names(origData$metadata) ) {
+    parserFunction = chooseMsDataParser(origData$metadata[['msdata-version']])
+  }
+
   frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
-    frm <- jsonParser(origData$data[[uprot]],origData$defaults$rKeys )
+    frm <- parserFunction(origData$data[[uprot]],origData$defaults$rKeys )
 
     # We should get a data frame out from the jsonParser - attach the uniprot id as
     # another column into the data frame
