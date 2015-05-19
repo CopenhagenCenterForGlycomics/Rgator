@@ -445,8 +445,8 @@ testParseJson <- function(filename) {
   all_prots <- names(origData$data)
   parserFunction = jsonParser
 
-  if ( 'metadata' %in% names(origData) && 'msdata-version' %in% names(origData$metadata) ) {
-    parserFunction = chooseMsDataParser(origData$metadata[['msdata-version']])
+  if ( 'metadata' %in% names(origData) && 'msdata-version' %in% names(origData$metadata[[1]]) ) {
+    parserFunction = chooseMsDataParser(origData$metadata[[1]][['msdata-version']])
   }
 
   frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
@@ -464,13 +464,15 @@ testParseJson <- function(filename) {
 
   wanted_cols <- names(frame)
   frame <- subset(frame,select=c('uniprot',wanted_cols[!wanted_cols == 'uniprot']))
-  data.table::setnames(frame, c('uniprot', origData$defaults$rKeys, rep('NA',dim(frame)[2] - (length(origData$defaults$rKeys)+1))))
+  if( 'defaults' %in% names(origData) && 'rKeys' %in% names(origData$defaults) ) {
+    data.table::setnames(frame, c('uniprot', origData$defaults$rKeys, rep('NA',dim(frame)[2] - (length(origData$defaults$rKeys)+1))))
+  }
 
   if (!is.null(origData$defaults$rNames)) {
     names(frame) <- c('uniprot',origData$defaults$rNames)
   }
 
-  return (frame)
+  return (as.data.frame(frame))
 }
 
 cacheFile <- function(url,fileId,gzip=F,...) {

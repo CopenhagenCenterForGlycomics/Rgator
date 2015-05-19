@@ -20,7 +20,8 @@ parser_v1 <- function(rows,rKeys) {
 				multiple.protein=row$multi_protein,
 				quantification=NA,
 				quantification_mad=NA,
-				composition=join_composition(row$composition)
+				composition=join_composition(row$composition),
+				source=row$source
 			)
 	if ('sites' %in% names(row)) {
 		num_sites <- length(row$sites)
