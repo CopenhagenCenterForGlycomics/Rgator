@@ -480,15 +480,39 @@ testParseJson <- function(filename,attach=F) {
   return (as.data.frame(frame))
 }
 
-dataenv <- NULL
-
 getDataEnvironment <- function() {
-  if (is.null(dataenv)) {
+  if (! 'package:gatordata' %in% search()) {
+    attach(new.env(),name='package:gatordata')
     dataenv <- as.environment('package:gatordata')
-    attr(dataenv,'path') <- '/tmp/foo'
-    attach(dataenv,name='package:gatordata')
+    package_path <- file.path(tempdir(), 'gatordata-package')
+    dir.create(package_path, showWarnings = FALSE)
+    attr(dataenv,'path') <- package_path
+    updateDataVersions()
   }
   return(as.environment('package:gatordata'))
+}
+
+getDataVersions <- function() {
+  env <- getDataEnvironment()
+  datasets <- ls(env)
+  version_ids <- sapply(datasets,function(set) {
+    if ('version' %in% names(attributes(env[[set]]))) {
+      paste( set, attributes(env[[set]])[['version']], sep='-' )
+    } else {
+      NA
+    }
+  },USE.NAMES=F)
+  version_ids[ ! is.na(version_ids) ]
+}
+
+updateDataVersions <- function() {
+  package_path <- attr(getDataEnvironment(),'path')
+  description <- list(Package='gatordata',Type='Package',Title='gatordata',Version=paste(getDataVersions(),collapse='_'),Date=format(Sys.time(), "%y-%m-%d"))
+  write(renderDescription(description),file.path(package_path,'DESCRIPTION'))
+}
+
+renderDescription <- function(fields) {
+  paste(sapply(names(fields),function(x){ paste(x,fields[[x]],sep=':'); },USE.NAMES=F),collapse="\n")
 }
 
 cacheFile <- function(url,fileId,gzip=F,...) {
