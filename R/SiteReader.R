@@ -433,7 +433,7 @@ testParseBJson <- function(filename) {
 # @importFrom data.table rbindlist
 # @importFrom data.table setnames
 # @importFrom plyr llply
-testParseJson <- function(filename) {
+testParseJson <- function(filename,attach=F) {
   etag <- NULL
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
@@ -471,8 +471,24 @@ testParseJson <- function(filename) {
   if (!is.null(origData$defaults$rNames)) {
     names(frame) <- c('uniprot',origData$defaults$rNames)
   }
+  frame <- as.data.frame(frame)
+
+  if (attach) {
+    getDataEnvironment()[[ filename ]] <- frame
+  }
 
   return (as.data.frame(frame))
+}
+
+dataenv <- NULL
+
+getDataEnvironment <- function() {
+  if (is.null(dataenv)) {
+    dataenv <- as.environment('package:gatordata')
+    attr(dataenv,'path') <- '/tmp/foo'
+    attach(dataenv,name='package:gatordata')
+  }
+  return(as.environment('package:gatordata'))
 }
 
 cacheFile <- function(url,fileId,gzip=F,...) {
