@@ -474,7 +474,8 @@ testParseJson <- function(filename,attach=F) {
   frame <- as.data.frame(frame)
 
   if (attach) {
-    getDataEnvironment()[[ filename ]] <- frame
+    data.env = getDataEnvironment()
+    data.env[[ filename ]] <- frame
   }
 
   return (as.data.frame(frame))
