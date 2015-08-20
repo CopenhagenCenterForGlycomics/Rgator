@@ -274,7 +274,8 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
             accumulated_frame <- data.table::rbindlist(list(accumulated_frame,frame))
           }
           if ( i == length(accgroups)) {
-            assign(paste("gator.",gsub("[[:space:]]|-","_",config[['title']]),sep=""),accumulated_frame, envir = .GlobalEnv)
+            data.env = getDataEnvironment()
+            data.env[[ config[['title']] ]] <- accumulated_frame
           }
         }
         return (frame)
@@ -301,9 +302,9 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   # the data
   message("Checking etags of pre-parsed data")
   if(etagcheck) {
-    if (exists( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )) {
+    if (exists( data$title, where=getDataEnvironment() )) {
       message("We have data loaded up in the environment")
-      frame <- get( paste("gator.",gsub("[[:space:]]|-","_",data$title),sep="") )
+      frame <- get( data$title, envir=getDataEnvironment() )
       if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
         return ()
       }
@@ -312,7 +313,8 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       frame <- loadParsedJson(data$title)
       if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
         message("We have data that has already been parsed")
-        assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
+        data.env = getDataEnvironment()
+        data.env[[ data$title ]] <- frame
         return ()
       }
 
@@ -322,11 +324,18 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   message("Preparing to parse data")
 
   parserFunction = jsonParser
+  version = NULL
 
   if ('metadata' %in% names(data) && 'msdata-version' %in% data$metadata) {
-    parserFunction = chooseMsDataParser(data$metadata$msdata-version)
+    message("Parsing msdata")
+    parserFunction = chooseMsDataParser(data$metadata[['msdata-version']])
+    version = getMsDataVersionId(data$metadata[['msdata-version']],data)
   }
-
+  if ('metadata' %in% names(data) && is.list(data$metadata) && 'msdata-version' %in% names(data$metadata[[1]])) {
+    message("Parsing msdata")
+    parserFunction = chooseMsDataParser(data$metadata[[1]][['msdata-version']])
+    version = getMsDataVersionId(data$metadata[[1]][['msdata-version']],data)
+  }
 
   if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) == 1 && 'base64' %in% data$defaults$rKeys) {
     all_prots <- names(data$data)
@@ -337,14 +346,17 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       }
     },.progress="text")
     attributes(frame)$etag <- data$etag
-    assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
+    data.env = getDataEnvironment()
+    data.env[[ filename ]] <- frame
+    if ( ! is.null(version)) {
+      atttributes(frame)$version <- version
+    }
     writeParsedJson(frame,data$title)
     return (data.frame())
-  } else if (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) {
+  } else if ( (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) || ('metadata' %in% names(data)) ) {
     all_prots <- names(data$data)
     frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
       frm <- parserFunction(data$data[[uprot]],data$defaults$rKeys )
-
       # We should get a data frame out from the jsonParser - attach the uniprot id as
       # another column into the data frame
 
@@ -373,7 +385,12 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
   frame$uniprot <- tolower(frame$uniprot)
 
-  assign(paste("gator.",gsub("[[:space:]]|-","_",data$title),sep=""),frame, envir = .GlobalEnv)
+  if ( ! is.null(version) ) {
+    attributes(frame)$version <- version
+  }
+
+  data.env = getDataEnvironment()
+  data.env[[ data$title ]] <- frame
 
   writeParsedJson(frame,data$title)
 

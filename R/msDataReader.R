@@ -4,6 +4,16 @@ chooseMsDataParser <- function(wanted_version) {
 	}
 }
 
+getMsDataVersionId <- function(msdata_version,data) {
+	if (msdata_version == '1') {
+		metadata = data$metadata
+		if ( is.list(metadata) ) {
+			metadata = data$metadata[[1]]
+		}
+		return(paste(sapply(metadata$software,function(soft) { paste(soft$name,soft$version,sep=':',collapse=':') }),collapse=':'))
+	}
+}
+
 join_composition <- function(composition) {
 	paste(composition,collapse=';')
 }
