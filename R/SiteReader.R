@@ -371,7 +371,9 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     # ends up as the first column for consistency
     wanted_cols <- names(frame)
     frame <- subset(frame,select=c('uniprot',wanted_cols[!wanted_cols == 'uniprot']))
-    data.table::setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
+    if ("defaults" %in% names(data) && ! is.null(data$defaults$rKeys)) {
+      data.table::setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
+    }
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
