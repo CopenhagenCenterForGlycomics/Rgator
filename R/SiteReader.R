@@ -403,7 +403,7 @@ loadParsedJson <- function(title) {
 
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
-    origData <- load(fileConn)
+    origData <- load(fileConn,envir=getDataEnvironment())
     close(fileConn)
   }
   return(frame)
