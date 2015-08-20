@@ -361,6 +361,9 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       # another column into the data frame
 
       frm$uniprot <- rep(uprot,dim(frm)[1])
+      if (nrow(frm) < 1) {
+        return (NULL)
+      }
       return(frm)
     },.progress="text"))
 
