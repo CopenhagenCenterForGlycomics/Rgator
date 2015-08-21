@@ -15,7 +15,6 @@ generateVennDiagram <- function(...) {
     data <- data[[1]]
   }
   package_attached = TRUE
-  browser()
   if (! 'package:VennDiagram' %in% search()) {
     require('VennDiagram')
     package_attached = FALSE
