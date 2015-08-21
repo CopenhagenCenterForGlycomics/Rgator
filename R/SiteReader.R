@@ -408,16 +408,17 @@ loadParsedJson <- function(title) {
   frame <- data.frame(stringsAsFactors=F)
 
   if (file.exists(filename)) {
-    fileConn <- file(filename,"r")
-    origData <- load(fileConn,envir=getDataEnvironment())
-    close(fileConn)
+    origData <- readRDS(filename)
+    data.env = getDataEnvironment()
+    data.env[[ title ]] <- origData
   }
   return(frame)
 }
 
 writeParsedJson <- function(title) {
+  message("Writing out cache for ",title)
   filename <- file.path(gator.cache,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
-  save(title,file=filename,envir=getDataEnvironment())
+  saveRDS(get(title,envir=as.environment('package:gatordata')),filename)
 }
 
 # @importFrom RCurl base64Decode
