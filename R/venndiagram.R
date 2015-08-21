@@ -28,6 +28,6 @@ generateVennDiagram <- function(...) {
 generateVennDiagramGrob <- function(data=list()) {
   require(grid)
   require(gridExtra)
-  return (grid::gTree(children = grid::gList(grid::grid.grabExpr(grid::grid.draw(VennDiagram::venn.diagram(data,filename=NULL)))), cl=c("arrange", "ggplot")))
+  return (grid::gTree(children = grid::gList(grid::grid.grabExpr(grid::grid.draw(getNamespace('VennDiagram')$venn.diagram(data,filename=NULL)))), cl=c("arrange", "ggplot")))
 }
 
