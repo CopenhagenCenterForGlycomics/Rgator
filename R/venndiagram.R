@@ -14,7 +14,16 @@ generateVennDiagram <- function(...) {
   if (! is.atomic(data[[1]]) & length(data) == 1 & is.vector(data[[1]]) & is.atomic(data[[1]][[1]])) {
     data <- data[[1]]
   }
+  package_attached = TRUE
+  browser()
+  if (! 'package:VennDiagram' %in% search()) {
+    require('VennDiagram')
+    package_attached = FALSE
+  }
   venn.plot <- generateVennDiagramGrob(data)
+  if ( ! package_attached ) {
+    detach('package:VennDiagram')
+  }
   ggplot(data.frame(),aes(x=1,y=1)) +
     geom_blank() + ggplot2::theme_bw() + ggplot2::annotation_custom(grob = venn.plot)  +
     theme(  line = element_blank(),
