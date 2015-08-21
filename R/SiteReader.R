@@ -310,7 +310,8 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       }
       message("No etag match, continuing")
     } else {
-      frame <- loadParsedJson(data$title)
+      loadParsedJson(data$title)
+      frame <- getDataEnvironment()[[data$title]]
       if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
         message("We have data that has already been parsed")
         data.env = getDataEnvironment()
