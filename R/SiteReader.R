@@ -352,7 +352,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     if ( ! is.null(version)) {
       atttributes(frame)$version <- version
     }
-    writeParsedJson(data$title)
+    writeParsedJson(filename)
     return (data.frame())
   } else if ( (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) || ('metadata' %in% names(data)) ) {
     all_prots <- names(data$data)
