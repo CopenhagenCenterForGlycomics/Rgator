@@ -351,7 +351,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     if ( ! is.null(version)) {
       atttributes(frame)$version <- version
     }
-    writeParsedJson(frame,data$title)
+    writeParsedJson(data$title)
     return (data.frame())
   } else if ( (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) || ('metadata' %in% names(data)) ) {
     all_prots <- names(data$data)
@@ -397,7 +397,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   data.env = getDataEnvironment()
   data.env[[ data$title ]] <- frame
 
-  writeParsedJson(frame,data$title)
+  writeParsedJson(data$title)
 
   frame
 }
@@ -414,9 +414,9 @@ loadParsedJson <- function(title) {
   return(frame)
 }
 
-writeParsedJson <- function(frame,title) {
+writeParsedJson <- function(title) {
   filename <- file.path(gator.cache,paste("gator.parsed.",gsub("[[:space:]]|-","_",title),sep=""))
-  save(frame,file=filename)
+  save(title,file=filename,envir=getDataEnvironment())
 }
 
 # @importFrom RCurl base64Decode
