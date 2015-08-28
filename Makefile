@@ -8,6 +8,24 @@ BUILDDIR = pkg
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
+bump_minor:
+	$(eval VERSION := $(shell ./tools/convertversion.sh "minor"))
+	sed 's/^Version: .*$$/Version: '$(VERSION)'/' DESCRIPTION | sed 's/^Date: .*$$/Date: '`date "+%Y-%m-%d"`'/' > DESCRIPTION
+	git commit -m 'Minor version bump' -- DESCRIPTION
+	git tag $(VERSION)
+
+bump_major:
+	$(eval VERSION := $(shell ./tools/convertversion.sh "major"))
+	sed 's/^Version: .*$$/Version: '$(VERSION)'/' DESCRIPTION | sed 's/^Date: .*$$/Date: '`date "+%Y-%m-%d"`'/' > DESCRIPTION
+	git commit -m 'Major version bump' -- DESCRIPTION
+	git tag $(VERSION)
+
+bump_patch:
+	$(eval VERSION := $(shell ./tools/convertversion.sh "patch"))
+	sed 's/^Version: .*$$/Version: '$(VERSION)'/' DESCRIPTION | sed 's/^Date: .*$$/Date: '`date "+%Y-%m-%d"`'/' > DESCRIPTION
+	git commit -m 'Patch version bump' -- DESCRIPTION
+	git tag $(VERSION)
+
 version_number:
 	$(eval VERSION := $(shell ./tools/convertversion.sh))
 
@@ -24,9 +42,17 @@ $(BUILDDIR)/R/%: R/%
 $(BUILDDIR)/src/%: src/%
 	cp -f $< $@
 
+$(BUILDDIR)/tests/%: tests/%
+	cp -rf $< $@
+
+$(BUILDDIR)/vignettes/%: vignettes/%
+	cp -f $< $@
+
 R_FILES := $(wildcard R/*.R)
 SRC_FILES := $(wildcard src/*) $(addprefix src/, $(COPY_SRC))
-PKG_FILES := $(BUILDDIR)/DESCRIPTION $(BUILDDIR)/NAMESPACE $(addprefix $(BUILDDIR)/,$(R_FILES)) $(addprefix $(BUILDDIR)/,$(SRC_FILES))
+VIGNETTE_FILES := $(wildcard vignettes/*)
+TEST_FILES := $(wildcard tests/*)
+PKG_FILES := $(BUILDDIR)/DESCRIPTION $(BUILDDIR)/NAMESPACE $(addprefix $(BUILDDIR)/,$(R_FILES)) $(addprefix $(BUILDDIR)/,$(SRC_FILES)) $(addprefix $(BUILDDIR)/,$(VIGNETTE_FILES)) $(addprefix $(BUILDDIR)/,$(TEST_FILES))
 MAN_FILES := $(addprefix $(BUILDDIR)/,$(wildcard man/*))
 TARBALL_NAME := $(PKG_NAME)_$(PKG_VERSION).tar.gz
 
@@ -40,6 +66,8 @@ package_directories:
 	mkdir -p $(BUILDDIR)/R
 	mkdir -p $(BUILDDIR)/src
 	mkdir -p $(BUILDDIR)/man
+	mkdir -p $(BUILDDIR)/vignettes
+	mkdir -p $(BUILDDIR)/tests
  
 .PHONY: tarball install check clean build DESCRIPTION-vars package_directories
  
@@ -62,10 +90,8 @@ NAMESPACE: $(R_FILES)
 .PHONY: package-documentation documentation
 man documentation:
 	Rscript -e "library(roxygen2);roxygenize('.',roclets=c('rd'))"	
-package-documentation: man
+package-documentation: documentation
 	cp -f man/* $(BUILDDIR)/man/
-#	Rscript -e "library(roxygen2);roxygenize('pkg',roclets=c('rd','namespace'))"
-
 
 clean: DESCRIPTION-vars
 	-rm -f $(PKG_NAME)_*.tar.gz
@@ -75,7 +101,7 @@ clean: DESCRIPTION-vars
 
 
 .SECONDEXPANSION:
-tarball: DESCRIPTION-vars $$(TARBALL_NAME)
+tarball: DESCRIPTION-vars documentation $$(TARBALL_NAME)
 
 .PHONY: list
 list:

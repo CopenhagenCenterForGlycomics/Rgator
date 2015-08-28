@@ -250,6 +250,12 @@ downloadOrthologies <- function() {
   assign('gator.orthology',rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
 }
 
+has_internet <- function() {
+  test <- try(suppressWarnings(read.lines(url,n=1)),silent=TRUE)
+
+  !inherits(test,'try-error')
+}
+
 # @importFrom plyr ldply
 # @importFrom plyr llply
 # @importFrom data.table rbindlist
@@ -622,6 +628,10 @@ getGatorSnapshot <- function(gatorURL,fileId) {
     close(fileConn)
     etag <- origData$etag
   }
+  if (! has_internet()) {
+    return (origData)
+  }
+
   config <- list()
   message(gatorURL)
   url <- gsub("/data/latest/", "/data/history/", gatorURL)
@@ -673,6 +683,9 @@ getGoogleFile <- function(fileId) {
     origData <- rjson::fromJSON(,fileConn)
     close(fileConn)
     etag <- origData$etag
+  }
+  if (! has_internet()) {
+    return (origData)
   }
 
 	access_info <- doSignin()
