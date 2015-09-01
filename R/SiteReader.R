@@ -306,6 +306,10 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     }
   }
 
+  if (is.null(data)) {
+    data<-list(etag=NULL,title=gsub("[[:space:]]|-","_",config[['title']]))
+  }
+
   # We should check to make sure that the etag for the current data frame in the global namespace
   # matches with the etag for the current data, so we can find out if we have to redo the parsing of
   # the data
@@ -314,14 +318,19 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     if (exists( data$title, where=getDataEnvironment() )) {
       message("We have data loaded up in the environment")
       frame <- get( data$title, envir=getDataEnvironment() )
-      if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
+      if ( is.null(data$etag) ) {
+        return ()
+      }
+      etagmatch=!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)
+      if ( is.null(data$etag) || etagmatch ) {
         return ()
       }
       message("No etag match, continuing")
     } else {
       loadParsedJson(data$title)
       frame <- getDataEnvironment()[[data$title]]
-      if (!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)) {
+      etagmatch=!is.null(attributes(frame)$etag) && attributes(frame)$etag == format(data$etag,scientific=FALSE)
+      if ( is.null(data$etag) || etagmatch ) {
         message("We have data that has already been parsed")
         data.env = getDataEnvironment()
         data.env[[ data$title ]] <- frame
@@ -607,7 +616,7 @@ getGatorSnapshotSubset <- function(fileId,accs) {
     return ()
   }
   if (file_request$status_code > 400 && file_request$status_code < 500) {
-    message("Could not retrieved data from: ",url," got status code ",file_request$status_code)
+    message("Could not retrieve data from: ",url," got status code ",file_request$status_code)
     return ()
   }
 
@@ -650,7 +659,7 @@ getGatorSnapshot <- function(gatorURL,fileId) {
     return (origData)
   }
   if (file_request$status_code > 400 && file_request$status_code < 500) {
-    message("Could not retrieved data from: ",url," got status code ",file_request$status_code)
+    message("Could not retrieve data from: ",url," got status code ",file_request$status_code)
     return ()
   }
 
