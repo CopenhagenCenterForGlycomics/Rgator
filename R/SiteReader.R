@@ -178,6 +178,8 @@ syncDatasets <- function() {
     lapply(seq_along(prefs$user_datasets), function(i) { key <- names(prefs$user_datasets)[i]; config <- prefs$user_datasets[[key]]; downloadDataset(key,config) } )
   });
 
+  updateDataVersions()
+
 }
 
 # @importFrom plyr ldply
@@ -251,7 +253,8 @@ downloadOrthologies <- function() {
 }
 
 has_internet <- function() {
-  test <- try(suppressWarnings(read.lines(url,n=1)),silent=TRUE)
+  url = 'http://www.google.com'
+  test <- try(suppressWarnings(readLines(url,n=1)),silent=TRUE)
 
   !inherits(test,'try-error')
 }
@@ -621,6 +624,7 @@ getGatorSnapshotSubset <- function(fileId,accs) {
 getGatorSnapshot <- function(gatorURL,fileId) {
   filename <- file.path(gator.cache,paste("gator-",fileId,".json",sep=''))
   etag <- NULL
+  origData <- NULL
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
     message("Loading cached file")
