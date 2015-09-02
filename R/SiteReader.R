@@ -249,7 +249,8 @@ downloadOrthologies <- function() {
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/homologene/',list(type='gatorURL',title='orthology.homologene'))
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.treefam.9/',list(type='gatorURL',title='orthology.treefam'))
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.inparanoid.8_1/',list(type='gatorURL',title='orthology.inparanoid'))
-  assign('gator.orthology',rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`),envir=.GlobalEnv)
+  data.env = getDataEnvironment()
+  data.env[[ 'gator.orthology' ]] <- rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`)
 }
 
 has_internet <- function() {

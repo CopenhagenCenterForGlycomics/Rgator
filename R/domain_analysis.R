@@ -53,6 +53,14 @@ downloadDomains <- function(...) {
   })
 }
 
+#' @export
+downloadInterproDomains <- function(...) {
+  organism = as.character(list(...))
+  sapply( organism, function(org) {
+    downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/interpro.53.0.',org,'/',sep=''),list(type='gatorURL',title=paste('interpro.',org,sep='')))
+  })
+}
+
 #' Divide up sets of sites based on their site context
 #'
 #' It is useful to be able to classify sites so that you can see where the sites

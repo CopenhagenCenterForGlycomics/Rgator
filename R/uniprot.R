@@ -17,7 +17,8 @@ getUniprotIds <- function(taxonomy) {
   id_request <- httr::GET("http://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
   id_text <- httr::content(id_request,as='text')
   idlist <- unlist(strsplit(id_text,"\n"))
-  assign( paste("gator.UniProtData.accs.",taxonomy,sep=""), idlist, envir = .GlobalEnv )
+  data.env = getDataEnvironment()
+  data.env[[ paste("gator.UniProtData.accs.",taxonomy,sep="") ]] <- idlist
   return (idlist)
 }
 
@@ -48,15 +49,12 @@ getUniprotSequences <- function(accessions,wait=0) {
     return (unique(accumulated_frame))
   }
   wanted_accs <- accessions
-  cached <- loadParsedJson('UniProtData')
-  if (dim(cached)[1] > 0) {
-    assign("gator.UniProtData",cached, envir = .GlobalEnv)
-  }
-  cached <- NULL
+  loadParsedJson('UniProtData')
   if (exists("gator.UniProtData")) {
     wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
   } else {
-    assign("gator.UniProtData",data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE), envir = .GlobalEnv)
+    data.env = getDataEnvironment()
+    data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
   }
   if (length(wanted_accs) < 1) {
     return (subset(gator.UniProtData, uniprot %in% accessions ))
@@ -79,8 +77,9 @@ getUniprotSequences <- function(accessions,wait=0) {
   }
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
-  assign('gator.UniProtData', data.table::rbindlist( list(get('gator.UniProtData'), seqs) ), envir = .GlobalEnv)
-  writeParsedJson(gator.UniProtData,'UniProtData')
+  data.env = getDataEnvironment()
+  data.env[[ 'gator.UniProtData']] <- as.data.frame(data.table::rbindlist( list(get('gator.UniProtData'), seqs)))
+  writeParsedJson('gator.UniProtData')
   Sys.sleep(wait)
   return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
 }
