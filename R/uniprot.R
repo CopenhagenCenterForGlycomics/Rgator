@@ -32,8 +32,19 @@ getUniprotIds <- function(taxonomy) {
 #' @return  Data frame with UniProt identifier and sequence
 #' @export
 getUniprotSequences <- function(accessions,wait=0) {
-  if (length(accessions) > 200) {
-    accgroups <- split(accessions, ceiling(seq_along(accessions)/200))
+  wanted_accs <- accessions
+  loadParsedJson('UniProtData')
+  if (exists("gator.UniProtData")) {
+    wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
+  } else {
+    data.env = getDataEnvironment()
+    data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
+  }
+  if (length(wanted_accs) < 1) {
+    return (subset(gator.UniProtData, uniprot %in% accessions ))
+  }
+  if (length(wanted_accs) > 200) {
+    accgroups <- split(wanted_accs, ceiling(seq_along(wanted_accs)/200))
     accumulated_frame <- NULL
     pb <- txtProgressBar(min=0, max=length(accgroups),initial=0)
     for (i in seq_along(accgroups)) {
@@ -48,17 +59,7 @@ getUniprotSequences <- function(accessions,wait=0) {
     close(pb)
     return (unique(accumulated_frame))
   }
-  wanted_accs <- accessions
-  loadParsedJson('UniProtData')
-  if (exists("gator.UniProtData")) {
-    wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
-  } else {
-    data.env = getDataEnvironment()
-    data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
-  }
-  if (length(wanted_accs) < 1) {
-    return (subset(gator.UniProtData, uniprot %in% accessions ))
-  }
+
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
   fastas <- httr::POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=RCurl::fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
   if (fastas$status_code != 200) {
