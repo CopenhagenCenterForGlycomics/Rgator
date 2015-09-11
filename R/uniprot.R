@@ -61,9 +61,16 @@ getUniprotSequences <- function(accessions,wait=0) {
   }
 
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
-  fastas <- httr::POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=RCurl::fileUpload('upload',toupper(paste(unlist(wanted_accs),collapse="\n")))),multipart=TRUE)
+  toupload <- tempfile()
+  writeLines(toupper(paste(unlist(wanted_accs),collapse="\n")), toupload)
+  acc_file <- httr::upload_file(toupload)
+
+  fastas <- httr::POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=acc_file),encode="multipart")
+
+  unlink(toupload)
+
   if (fastas$status_code != 200) {
-    message("Could not retrieve ids")
+    message("Could not retrieve ids ",fastas$status_code)
     return(unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
   }
   contents <- httr::content(fastas,"text")
