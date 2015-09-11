@@ -21,7 +21,7 @@ join_composition <- function(composition) {
 
 parser_v1 <- function(rows,rKeys) {
 	row <- rows[[1]]
-	do.call("rbind", lapply(rows,function(row) {
+	as.data.frame(do.call("rbind", lapply(rows,function(row) {
 		peptide_id <- substring(tempfile(pattern="peptide",tmpdir=''),2)
 
 		base <- data.frame(	peptide=row$sequence,
@@ -56,5 +56,5 @@ parser_v1 <- function(rows,rKeys) {
 		}
 
 		base
-	}));
+	})));
 }
