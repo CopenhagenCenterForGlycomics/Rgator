@@ -366,6 +366,8 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       }
     },.progress="text")
     attributes(frame)$etag <- data$etag
+    class(frame) <- 'data.frame'
+
     data.env = getDataEnvironment()
     data.env[[ filename ]] <- frame
     if ( ! is.null(version)) {
@@ -407,6 +409,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     names(frame) <- c('uniprot',data$defaults$rNames)
   }
   attributes(frame)$etag <- data$etag
+  class(frame) <- 'data.frame'
 
   frame$uniprot <- tolower(frame$uniprot)
 
