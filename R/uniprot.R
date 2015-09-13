@@ -33,13 +33,12 @@ getUniprotIds <- function(taxonomy) {
 #' @export
 getUniprotSequences <- function(accessions,wait=0) {
   wanted_accs <- accessions
-  loadParsedJson('UniProtData')
+  loadParsedJson('gator.UniProtData')
   if (exists("gator.UniProtData")) {
     wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
   } else {
     data.env = getDataEnvironment()
     data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
-    wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
   }
   if (length(wanted_accs) < 1) {
     return (subset(gator.UniProtData, uniprot %in% accessions ))
