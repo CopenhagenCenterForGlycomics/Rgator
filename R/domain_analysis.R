@@ -46,10 +46,14 @@ getDomainSets <- function( inputsites, sitecol, domaindata,  max_dom_proportion=
 downloadDomains <- function(...) {
   organism = as.character(list(...))
   if ("9606" %in% organism) {
-    downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
+    set = downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
+    names(set) <- c('uniprot','dom','start','end')
+    set
   }
   sapply( organism[organism != '9606'], function(org) {
-    downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',org,'/',sep=''),list(type='gatorURL',title=paste('domains.',org,sep='')))
+    set = downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',org,'/',sep=''),list(type='gatorURL',title=paste('domains.',org,sep='')))
+    names(set) <- c('uniprot','dom','start','end')
+    set
   })
 }
 

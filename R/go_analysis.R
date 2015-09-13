@@ -49,6 +49,9 @@ getGOTerms <- function(organism=9606,uniprots,wanted=c(),ontology='BP') {
 retrieveGOTerms <- function(organism=9606,uniprots) {
   getBiocLiteLib('GO.db')
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  if (as.character(organism) == '10029') {
+    return (retrieveGOTerms.goa(organism,uniprots))
+  }
   query_ids <- getEntrezIds(organism,uniprots)
   if (as.character(organism) == '4932') {
     entrez_ids <- query_ids
@@ -220,6 +223,10 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
 
   hgOver <- hyperGTest(params)
   return (hgOver)
+}
+
+retrieveGOTerms.goa <- function(organism,uniprots) {
+  goa <- downloadUniprotGOA(organism)
 }
 
 #' Download annotations from the UniprotGOA site
