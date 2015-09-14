@@ -4,6 +4,9 @@
 #' @export
 getEntrezIds <- function(organism=9606,ids) {
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  if (! as.character(organism) %in% names(organisms)) {
+    return()
+  }
   dbname<-organisms[[as.character(organism)]]
   getBiocLiteLib(dbname)
   uprotmap <- sub("\\.db","UNIPROT",dbname)

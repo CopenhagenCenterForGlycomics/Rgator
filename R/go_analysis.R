@@ -176,14 +176,21 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
   getBiocLiteLib("GOstats")
   getBiocLiteLib("GSEABase")
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db','9823'='org.Ss.eg.db')
-  dbname<-organisms[[as.character(organism)]]
-  getBiocLiteLib(dbname)
-  library(dbname,character.only=TRUE)
+  dbname = NULL
+  if ( as.character(organism) %in% names(organisms) ) {
+    dbname = organisms[[as.character(organism)]]
+    getBiocLiteLib(dbname)
+    library(dbname,character.only=TRUE)
+  }
   if (length(query_ids) < 1 & length(uniprots) > 0) {
     query_ids <- getEntrezIds(organism,uniprots)
   }
-  if (supplemental.terms == TRUE) {
+  if (is.null(dbname) || supplemental.terms == TRUE) {
     supplemental.terms <- downloadUniprotGOA(organism)
+  }
+  if (is.null(dbname) && !is.null(supplemental.terms)) {
+    message("Don't have Gene IDs for this organism, using UniProt identifiers instead")
+    query_ids <- uniprots
   }
   if (as.character(organism) == '4932' & length(query_ids) > 0) {
     entrez_ids <- query_ids
@@ -192,7 +199,11 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
   }
 
   if (length(universe) < 1) {
-    universe <- as.list( mappedkeys(get( sub("\\.db","GO",dbname ),asNamespace(dbname) )) )
+    if (is.null(dbname)) {
+      universe <- getUniprotIds(organism)
+    } else {
+      universe <- as.list( mappedkeys(get( sub("\\.db","GO",dbname ),asNamespace(dbname) )) )
+    }
   } else {
     universe <- getEntrezIds(organism,universe)
   }
@@ -209,8 +220,14 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
              )
   } else {
     library("GSEABase")
-    super_terms = subset( unique(rbind ( removeFactors( as.data.frame(AnnotationDbi::toTable( get( sub("\\.db","GO", dbname),asNamespace(dbname) ) ))), supplemental.terms)), Ontology==ontology)
-    frame=GOFrame(data.frame(super_terms$go_id, super_terms$Evidence, super_terms$gene_id),organism=as.character(organism))
+    target_db = supplemental.terms
+    column_name = "uniprot"
+    if (! is.null(dbname) ) {
+      target_db = rbind( target_db, removeFactors( as.data.frame(AnnotationDbi::toTable( get( sub("\\.db","GO", dbname),asNamespace(dbname) ) ))) )
+      column_name = "gene_id"
+    }
+    super_terms = unique(target_db[target_db$Ontology == ontology,])
+    frame=GOFrame(data.frame(super_terms$go_id, super_terms$Evidence, super_terms[[column_name]]),organism=as.character(organism))
     allFrame=GOAllFrame(frame)
     gsc <- GeneSetCollection(allFrame, setType = GOCollection())
     params <- GSEAGOHyperGParams(name="Supplemental GO annotation",
@@ -227,6 +244,7 @@ getGOEnrichment <- function(organism=9606,uniprots,query_ids=c(),universe=c(),on
 
 retrieveGOTerms.goa <- function(organism,uniprots) {
   goa <- downloadUniprotGOA(organism)
+  goa[goa$uniprot %in% toupper(uniprots),]
 }
 
 #' Download annotations from the UniprotGOA site
@@ -253,6 +271,10 @@ downloadUniprotGOA <- function(organism=9606) {
   #This frame is actually indexed by uniprot ids, but call the column gene_id anyway to avoid renaming
   uniprot.goa$Ontology <- plyr::mapvalues(uniprot.goa$Ontology,c('F','P','C'),c('MF','BP','CC'))
   mapped_ids_only <- getEntrezIds(organism,uniprot.goa$gene_id)
+  if (is.null(mapped_ids_only)) {
+    names(uniprot.goa) <- c('uniprot','go_id','Evidence','Ontology')
+    return (uniprot.goa)
+  }
   mapped_ids <- data.frame(uniprot=names(mapped_ids_only),gene_id=as.character(mapped_ids_only))
   uniprot.goa$gene_id <- plyr::mapvalues(uniprot.goa$gene_id,mapped_ids$uniprot,mapped_ids$gene_id,warn_missing=F)
   return (uniprot.goa)
