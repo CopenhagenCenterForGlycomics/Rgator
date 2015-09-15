@@ -251,6 +251,7 @@ downloadOrthologies <- function() {
   downloadDataset('http://glycodomain-data.glycocode.com/data/latest/orthology.inparanoid.8_1/',list(type='gatorURL',title='orthology.inparanoid'))
   data.env = getDataEnvironment()
   data.env[[ 'gator.orthology' ]] <- rbind(gator.homologene,`gator.orthology.treefam`,`gator.orthology.inparanoid`)
+  saveEnvironment()
 }
 
 has_internet <- function() {
@@ -258,6 +259,25 @@ has_internet <- function() {
   test <- try(suppressWarnings(readLines(url,n=1)),silent=TRUE)
 
   !inherits(test,'try-error')
+}
+
+saveEnvironment <- function() {
+  if ( ! is.null(gator.cache) ) {
+    path = file.path(gator.cache, paste(basename(getwd()),'gatordata.rds',sep='_'))
+    saveRDS(Map(function(obj) { get(obj,envir=getDataEnvironment()) },ls(getDataEnvironment())),file = path)
+
+  }
+}
+
+restoreEnvironment <- function() {
+  if ( ! is.null(gator.cache) ) {
+    path = file.path(gator.cache, paste(basename(getwd()),'gatordata.rds',sep='_'))
+    objects <- readRDS(path)
+    data.env = getDataEnvironment()
+    for (key in names(objects)) {
+      data.env[[ key ]] <- objects[[key]]
+    }
+  }
 }
 
 # @importFrom plyr ldply
@@ -281,11 +301,12 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
           if (is.null(accumulated_frame)) {
             accumulated_frame <- frame
           } else {
-            accumulated_frame <- data.table::rbindlist(list(accumulated_frame,frame))
+            accumulated_frame <- as.data.frame(data.table::rbindlist(list(accumulated_frame,frame)))
           }
           if ( i == length(accgroups)) {
             data.env = getDataEnvironment()
             data.env[[ config[['title']] ]] <- accumulated_frame
+            saveEnvironment()
           }
         }
         return (frame)
@@ -335,6 +356,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
         message("We have data that has already been parsed")
         data.env = getDataEnvironment()
         data.env[[ data$title ]] <- frame
+        saveEnvironment()
         return ()
       }
 
@@ -373,6 +395,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     if ( ! is.null(version)) {
       atttributes(frame)$version <- version
     }
+    saveEnvironment()
     writeParsedJson(filename)
     return (data.frame())
   } else if ( (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) || ('metadata' %in% names(data)) ) {
@@ -396,6 +419,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     if ("defaults" %in% names(data) && ! is.null(data$defaults$rKeys)) {
       data.table::setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
     }
+    frame <- as.data.frame(frame)
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
@@ -419,7 +443,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
 
   data.env = getDataEnvironment()
   data.env[[ data$title ]] <- frame
-
+  saveEnvironment()
   writeParsedJson(data$title)
 
   frame
@@ -534,6 +558,7 @@ getDataEnvironment <- function() {
     package_path <- file.path(tempdir(), 'gatordata-package')
     dir.create(package_path, showWarnings = FALSE)
     attr(dataenv,'path') <- package_path
+    restoreEnvironment()
     updateDataVersions()
   }
   return(as.environment('package:gatordata'))

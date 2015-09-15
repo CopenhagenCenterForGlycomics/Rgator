@@ -47,21 +47,61 @@ downloadDomains <- function(...) {
   organism = as.character(list(...))
   if ("9606" %in% organism) {
     set = downloadDataset('http://glycodomain-data.glycocode.com/data/latest/fulldomains/',list(type='gatorURL',title='fulldomains'))
-    names(set) <- c('uniprot','dom','start','end')
     set
   }
   sapply( organism[organism != '9606'], function(org) {
     set = downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/domains.',org,'/',sep=''),list(type='gatorURL',title=paste('domains.',org,sep='')))
-    names(set) <- c('uniprot','dom','start','end')
     set
   })
 }
 
 #' @export
+getGOterms.interpro <- function(interpro=NULL,wanted=c(),ontology='BP') {
+  interpro_go <- cacheFile('ftp://ftp.ebi.ac.uk/pub/databases/interpro/interpro2go','interpro-go',comment.char='!')$V1
+  interpro_ids <- trimws(substr(interpro_go,10,18))
+  go_ids <- trimws(substr(interpro_go,nchar(interpro_go)-10,nchar(interpro_go)))
+  go_mapping <- data.frame(interpro=interpro_ids,go_id=go_ids)
+  ontologies <- AnnotationDbi::select(GO.db::GO.db, keys=trimws(unique(go_ids)),keytype='GOID',c('ONTOLOGY','GOID'))
+  names(ontologies) <- c('go_id','Ontology')
+  go_mapping <- merge(go_mapping,ontologies,by='go_id',all.x=T)
+  if ( !is.null(interpro) ) {
+
+    if (length(wanted) > 0 && ontology %in% c('CC','BP','MF')) {
+      go_ids <- sapply( wanted, function(x) { getGOChildren(x,ontology) }, USE.NAMES=T,simplify=F )
+      return ( as.data.frame(data.table::rbindlist(sapply(names(go_ids),function(x) {
+        expand.grid(go_id=x,term=AnnotationDbi::Term(x),
+                    interpro=unique(go_mapping[ go_mapping$go_id %in% go_ids[[x]] & go_mapping$interpro %in% interpro,'interpro' ] ))
+      },simplify=F)) ))
+    } else {
+      return (go_mapping[go_mapping$interpro %in% interpro,])
+    }
+
+
+  } else {
+    go_mapping
+  }
+}
+
+#' @export
 downloadInterproDomains <- function(...) {
   organism = as.character(list(...))
+  interpro_classes <- cacheFile('ftp://ftp.ebi.ac.uk/pub/databases/interpro/53.0/entry.list','interpro-classes')
+  starts = c( sort(sapply(c('Active_site','Binding_site','Conserved_site','Domain','Family','PTM','Repeat'), function(clazz) { which(interpro_classes$V1 == clazz) })), nrow(interpro_classes) )
+  classes <- list()
+  for (row in 1:(length(starts)-1)) {
+    class_data = data.frame(V1=interpro_classes[ (starts[row]+1):(starts[row+1]-1), ])
+    class_data$dom = substr(class_data$V1,1,9)
+    class_data$description <- substr(class_data$V1,11,nchar(class_data$V1))
+    class_data$class <- names(starts)[row]
+    classes[[ names(starts)[row] ]] <- class_data
+  }
+  annotations <- do.call(rbind,classes)
   sapply( organism, function(org) {
-    downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/interpro.53.0.',org,'/',sep=''),list(type='gatorURL',title=paste('interpro.',org,sep='')))
+    setname = paste('interpro.',org,sep='')
+    downloadDataset(paste('http://glycodomain-data.glycocode.com/data/latest/interpro.53.0.',org,'/',sep=''),list(type='gatorURL',title=setname))
+    data.env = getDataEnvironment()
+    data.env[[ paste(setname,'annotated',sep='.') ]] <- merge(get(setname),annotations,all.x=T,by='dom')[,c('uniprot','dom','start','end','class','description')]
+    saveEnvironment()
   })
 }
 
