@@ -272,10 +272,12 @@ saveEnvironment <- function() {
 restoreEnvironment <- function() {
   if ( ! is.null(gator.cache) ) {
     path = file.path(gator.cache, paste(basename(getwd()),'gatordata.rds',sep='_'))
-    objects <- readRDS(path)
-    data.env = getDataEnvironment()
-    for (key in names(objects)) {
-      data.env[[ key ]] <- objects[[key]]
+    if (file.exists(path)) {
+      objects <- readRDS(path)
+      data.env = getDataEnvironment()
+      for (key in names(objects)) {
+        data.env[[ key ]] <- objects[[key]]
+      }
     }
   }
 }
