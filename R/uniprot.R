@@ -52,7 +52,7 @@ getUniprotSequences <- function(accessions,wait=0) {
       if (is.null(accumulated_frame)) {
         accumulated_frame <- frame
       } else {
-        accumulated_frame <- data.table::rbindlist(list(accumulated_frame,frame))
+        accumulated_frame <- do.call(rbind,list(accumulated_frame,frame))
       }
       setTxtProgressBar(pb,i)
     }

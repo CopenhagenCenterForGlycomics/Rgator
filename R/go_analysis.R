@@ -35,7 +35,7 @@ getGOTerms <- function(organism=9606,uniprots,wanted=c(),ontology='BP') {
   all_terms <- retrieveGOTerms(organism,uniprots)
   if (length(wanted) > 0 && ontology %in% c('CC','BP','MF')) {
     go_ids <- sapply( wanted, function(x) { getGOChildren(x,ontology) }, USE.NAMES=T,simplify=F )
-    return ( data.table::rbindlist(sapply(names(go_ids),function(x) {
+    return ( do.call(rbind,sapply(names(go_ids),function(x) {
       expand.grid(go_id=x,term=AnnotationDbi::Term(x),
                   uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot))
     },simplify=F)) )
