@@ -83,38 +83,45 @@ acceptPreferences <- function(json) {
 # @importFrom websockets setCallback
 #' @export
 gatorConnector <- function() {
-  assign('gator.sockets',list(), envir = .GlobalEnv)
+  global_sockets <- list()
+  assign('gator.sockets',global_sockets, envir = .GlobalEnv)
   server <- httpuv::startDaemonizedServer(host='0.0.0.0',port=8880,list(onWSOpen=function(ws) {
-    gator.sockets[[length(gator.sockets) + 1]] <- ws
-    socket_id <- length(gator.sockets)
-    assign('gator.sockets',gator.sockets, envir = .GlobalEnv)
+    socket_id <- paste(sample(c(letters[1:6],0:9),30,replace=TRUE),collapse="")
+    global_sockets = get('gator.sockets', envir=.GlobalEnv)
+    global_sockets[[socket_id]] <- ws
+    assign('gator.sockets',global_sockets, envir = .GlobalEnv)
     ws$onMessage(function(binary,data) {
       receiver(data)
     })
     askForSignin(ws)
     ws$onClose(function() {
-      gator.sockets[[socket_id]] <- NULL
-      assign('gator.sockets',gator.sockets, envir = .GlobalEnv)
+      message("Lost connection to GlycoDomainViewer on socket ",socket_id)
+      global_sockets = get('gator.sockets', envir=.GlobalEnv)
+      global_sockets[[socket_id]] <- NULL
+      assign('gator.sockets',global_sockets, envir = .GlobalEnv)
     })
   }))
 
   view <- function(prot) {
-    message(length(gator.sockets))
-    for (sock in gator.sockets) {
+    global_sockets = get('gator.sockets', envir=.GlobalEnv)
+    message(length(global_sockets))
+    for (sock in global_sockets) {
       if (! is.null(sock)) {
         sock$send(rjson::toJSON(list(message="showProtein", data=unique(prot))))
       }
     }
   }
   align <- function(prot) {
-    for (sock in gator.sockets) {
+    global_sockets = get('gator.sockets', envir=.GlobalEnv)
+    for (sock in global_sockets) {
       if (! is.null(sock)) {
         sock$send(rjson::toJSON(list(message="alignProtein", data=unique(prot))))
       }
     }
   }
   compactRenderer <- function() {
-    for (sock in gator.sockets) {
+    global_sockets = get('gator.sockets', envir=.GlobalEnv)
+    for (sock in global_sockets) {
       if (! is.null(sock)) {
         sock$send(rjson::toJSON(list(message="compactRenderer", data="")))
       }
@@ -122,8 +129,9 @@ gatorConnector <- function() {
   }
 
   getPreferences <- function() {
-    if (length(gator.sockets) > 0) {
-        sock <- gator.sockets[[1]]
+    global_sockets = get('gator.sockets', envir=.GlobalEnv)
+    if (length(global_sockets) > 0) {
+        sock <- global_sockets[[1]]
         if (! is.null(sock)) {
           sock$send(rjson::toJSON(list(message="retrieveSession", data=getOption("connection_key"))))
         }
