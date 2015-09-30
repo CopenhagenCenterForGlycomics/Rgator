@@ -296,7 +296,7 @@ downloadUniprotGOA <- function(organism=9606) {
 getCytosolic <- function(organism,uniprots) {
   tabled_terms <- getGOTerms(organism,unique(uniprots),wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005856','GO:0005737'),ontology='CC')
   potential_cytosol <- as.character(unique(subset(tabled_terms,term %in% c('nucleus','vacuole','cytosol','cytoskeleton','cytoplasm'))$uniprot))
-  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol','cytoskeleton','cytoplasm'))$uniprot
+  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol','cytoskeleton','cytoplasm','cell junction'))$uniprot
   potential_cytosol[ ! potential_cytosol %in% potential_extracellular ]
 }
 
