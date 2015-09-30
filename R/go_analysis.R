@@ -288,15 +288,15 @@ downloadUniprotGOA <- function(organism=9606) {
 #' @return  Vector of UniProt identifiers
 #' @export
 getCytosolic <- function(organism,uniprots) {
-  tabled_terms <- getGOTerms(organism,unique(uniprots),wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829'),ontology='CC')
-  potential_cytosol <- as.character(unique(subset(tabled_terms,term %in% c('nucleus','vacuole','cytosol'))$uniprot))
-  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol'))$uniprot
+  tabled_terms <- getGOTerms(organism,unique(uniprots),wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005737','GO:0005856'),ontology='CC')
+  potential_cytosol <- as.character(unique(subset(tabled_terms,term %in% c('nucleus','vacuole','cytosol','cytoplasm','cytoskeleton'))$uniprot))
+  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol','cytoplasm','cytoskeleton'))$uniprot
   potential_cytosol[ ! potential_cytosol %in% potential_extracellular ]
 }
 
 #' @rdname Rgator-deprecated
 #' @export
-tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829'),ontology='CC') {
+tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005737','GO:0005856'),ontology='CC') {
   .Deprecated('getGOTerms',package='Rgator')
   getGOTerms(organism,uniprot,wanted,ontology)
 }
