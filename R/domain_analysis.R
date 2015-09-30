@@ -105,6 +105,70 @@ downloadInterproDomains <- function(...) {
   })
 }
 
+downloadDisulfides <- function(...) {
+  organism = as.character(list(...))
+  for (org in organism) {
+    disulfides <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=annotation%3A(type%3Adisulfid)&format=tab&columns=id,feature(DISULFIDE%20BOND)&fil=organism%3A",org,sep=''),paste('disulfide-uniprot-',org,sep=''),header=T);
+    extracted = plyr::llply( strsplit(disulfides$Disulfide.bond,'[0-9\\.]; '), function(el) {
+      res = Map( function(splt) {
+        if ("Interchain" %in% splt) {
+          c( as.numeric(splt[c(2,3)]), "interchain")
+        } else {
+          c( as.numeric(splt[c(2,3)]), "intrachain")
+        }
+      }, strsplit(el,' '))
+      return (res)
+    })
+    names(extracted) <- tolower(disulfides$Entry)
+    fixed = plyr::ldply(extracted,function(prot) {
+      res = as.data.frame(matrix(unlist(prot),ncol = 3,byrow=T))
+    })
+    names(fixed) <- c('uniprot','start','end','type')
+    attributes(fixed)$version <- paste('UniProt',attributes(disulfides)$version,sep='_')
+    data.env = getDataEnvironment()
+    data.env[[ paste('disulfide.uniprot.',org,sep='') ]] <- fixed
+    saveEnvironment()
+    updateDataVersions()
+  }
+}
+
+downloadProcessing <- function(...) {
+  organism = as.character(list(...))
+  for (org in organism) {
+    processing <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=annotation%3A(type%3Apeptide)+OR+annotation%3A(type%3Apropep)&format=tab&columns=id,feature(PROPEPTIDE),feature(PEPTIDE)&fil=organism%3A",org,sep=''),paste('processing-uniprot-',org,sep=''),header=T);
+    extracted.propep = plyr::llply( strsplit(processing$Propeptide,'PROPEP '), function(el) {
+      res = Map( function(splt) {
+        c( as.numeric(splt[c(1,2)]), "propep" )
+      }, strsplit(el,' '))
+      return (res)
+    })
+    names(extracted.propep) <- tolower(processing$Entry)
+    extracted.pep = plyr::llply( strsplit(processing$Peptide,'PEPTIDE '), function(el) {
+      res = Map( function(splt) {
+        c( as.numeric(splt[c(1,2)]), "peptide" )
+      }, strsplit(el,' '))
+      return (res)
+    })
+    names(extracted.pep) <- tolower(processing$Entry)
+    fixed.pep = plyr::ldply(Filter(length,extracted.pep),function(prot) {
+      res = as.data.frame(matrix(unlist(prot),ncol = 3,byrow=T))
+    })
+    names(fixed.pep) <- c('uniprot','start','end','type')
+    fixed.propep = plyr::ldply(Filter(length,extracted.propep),function(prot) {
+      res = as.data.frame(matrix(unlist(prot),ncol = 3,byrow=T))
+    })
+    names(fixed.propep) <- c('uniprot','start','end','type')
+    fixed = rbind(fixed.pep,fixed.propep)
+    fixed = fixed[!is.na(fixed$start),]
+    attributes(fixed)$version <- paste('UniProt',attributes(processing)$version,sep='_')
+    data.env = getDataEnvironment()
+    data.env[[ paste('processing.uniprot.',org,sep='') ]] <- fixed
+    saveEnvironment()
+    updateDataVersions()
+  }
+  ;
+}
+
 #' Divide up sets of sites based on their site context
 #'
 #' It is useful to be able to classify sites so that you can see where the sites

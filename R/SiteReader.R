@@ -597,21 +597,28 @@ renderDescription <- function(fields) {
   paste(sapply(names(fields),function(x){ paste(x,fields[[x]],sep=':'); },USE.NAMES=F),collapse="\n")
 }
 
-cacheFile <- function(url,fileId,gzip=F,...) {
+cacheUniprotFile <- function(url,fileId,gzip=F,header=F,...) {
+  response = httr::GET(url)
+  table <- httr::content(response,type='text/tab-separated-values')
+  attributes(table)$version <- httr::headers(response)[['x-uniprot-release']]
+  return (table)
+}
+
+cacheFile <- function(url,fileId,gzip=F,header=F,...) {
   filename <- file.path(gator.cache,paste("gator-",fileId,sep=''))
   etag <- NULL
   if (file.exists(filename)) {
     if (gzip) {
       filename <- gzfile(filename)
     }
-    return (read.delim(filename,header=F,sep='\t',...))
+    return (read.delim(filename,header=header,sep='\t',...))
   }
   download.file(url,filename)
 
   if (gzip) {
     filename <- gzfile(filename)
   }
-  return (read.delim(filename,header=F,sep='\t',...))
+  return (read.delim(filename,header=header,sep='\t',...))
 }
 
 uniqueframe <- function(set){
