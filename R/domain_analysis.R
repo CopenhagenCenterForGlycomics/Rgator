@@ -109,7 +109,7 @@ downloadDisulfides <- function(...) {
   organism = as.character(list(...))
   for (org in organism) {
     disulfides <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=annotation%3A(type%3Adisulfid)&format=tab&columns=id,feature(DISULFIDE%20BOND)&fil=organism%3A",org,sep=''),paste('disulfide-uniprot-',org,sep=''),header=T);
-    extracted = plyr::llply( strsplit(disulfides$Disulfide.bond,'[0-9\\.]; '), function(el) {
+    extracted = plyr::llply( strsplit(disulfides$Disulfide.bond,'(?<=[0-9\\.]); ',perl=T), function(el) {
       res = Map( function(splt) {
         if ("Interchain" %in% splt) {
           c( as.numeric(splt[c(2,3)]), "interchain")
