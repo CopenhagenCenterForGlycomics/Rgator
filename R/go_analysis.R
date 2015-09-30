@@ -34,7 +34,10 @@ getGOenrichmentGenes <- function(enrichment,wanted_terms=c(),organism=9606) {
 getGOTerms <- function(organism=9606,uniprots,wanted=c(),ontology='BP') {
   all_terms <- retrieveGOTerms(organism,uniprots)
   if (length(wanted) > 0 && ontology %in% c('CC','BP','MF')) {
-    go_ids <- sapply( wanted, function(x) { getGOChildren(x,ontology) }, USE.NAMES=T,simplify=F )
+    go_ids <- sapply( wanted[wanted != 'GO:0005737'], function(x) { getGOChildren(x,ontology) }, USE.NAMES=T,simplify=F )
+    if ( 'GO:0005737' %in% wanted ) {
+      go_ids[['GO:0005737']] <- 'GO:0005737'
+    }
     return ( do.call(rbind,sapply(names(go_ids),function(x) {
       expand.grid(go_id=x,term=AnnotationDbi::Term(x),
                   uniprot=unique(subset(all_terms, go_id %in% go_ids[[x]] & uniprot %in% uniprot )$uniprot))
@@ -49,6 +52,9 @@ getGOTerms <- function(organism=9606,uniprots,wanted=c(),ontology='BP') {
 retrieveGOTerms <- function(organism=9606,uniprots) {
   getBiocLiteLib('GO.db')
   organisms <- list('9606'='org.Hs.eg.db','10090'='org.Mm.eg.db','10116'='org.Rn.eg.db','7227'='org.Dm.eg.db','4932'='org.Sc.sgd.db')
+  if (as.character(organism) == '559292') {
+    organism <- 4932
+  }
   if (as.character(organism) == '10029') {
     return (retrieveGOTerms.goa(organism,uniprots))
   }
@@ -288,15 +294,15 @@ downloadUniprotGOA <- function(organism=9606) {
 #' @return  Vector of UniProt identifiers
 #' @export
 getCytosolic <- function(organism,uniprots) {
-  tabled_terms <- getGOTerms(organism,unique(uniprots),wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005737','GO:0005856'),ontology='CC')
-  potential_cytosol <- as.character(unique(subset(tabled_terms,term %in% c('nucleus','vacuole','cytosol','cytoplasm','cytoskeleton'))$uniprot))
-  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol','cytoplasm','cytoskeleton'))$uniprot
+  tabled_terms <- getGOTerms(organism,unique(uniprots),wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005856','GO:0005737'),ontology='CC')
+  potential_cytosol <- as.character(unique(subset(tabled_terms,term %in% c('nucleus','vacuole','cytosol','cytoskeleton','cytoplasm'))$uniprot))
+  potential_extracellular <- subset(tabled_terms, ! term %in% c('nucleus','vacuole','cytosol','cytoskeleton','cytoplasm'))$uniprot
   potential_cytosol[ ! potential_cytosol %in% potential_extracellular ]
 }
 
 #' @rdname Rgator-deprecated
 #' @export
-tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005737','GO:0005856'),ontology='CC') {
+tableGOTerms <- function(organism,uniprot,wanted=c('GO:0030054','GO:0005886','GO:0012505','GO:0005783','GO:0005794','GO:0005764','GO:0016020','GO:0005739','GO:0005634','GO:0005576','GO:0005773','GO:0005829','GO:0005856','GO:0005737'),ontology='CC') {
   .Deprecated('getGOTerms',package='Rgator')
   getGOTerms(organism,uniprot,wanted,ontology)
 }
