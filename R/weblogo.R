@@ -16,6 +16,7 @@ generateLogoPlot <- function(dataframe,windowcol,frequencies=c(),labels=T) {
   if (labels & 'uniprot' %in% names(dataframe)) {
     plot <- plot + ggplot2::labs(title=paste(length(unique(dataframe[[windowcol]]))," sites ",length(unique(dataframe[['uniprot']]))," proteins "))
   }
+  attributes(plot)$pwm <- pwm
   return (plot)
 }
 
