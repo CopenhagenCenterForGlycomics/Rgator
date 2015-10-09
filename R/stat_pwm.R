@@ -19,7 +19,7 @@ stat_pwm <- function(mapping = NULL, data = NULL, geom = "text",
 
 #' @export
 PWMFunction <- ggproto("PWMFunction", Stat,
-                        default_aes = aes(color=..label..),
+                        default_aes = aes(color=..label..,size=abs(4*log2(..y..))),
                         compute_panel = function(data, scales, backFreq=list(),zero=0.001) {
                           pwm = Rgator:::calculatePWM(data,'window')
                           pwm[pwm==0]<-zero

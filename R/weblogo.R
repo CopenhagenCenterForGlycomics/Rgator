@@ -31,7 +31,7 @@ generateLogoPlot <- function(dataframe) {
   window_width = ceiling(max(nchar(dataframe$window))/2)
   library(ggplot2)
   ggplot()+
-  stat_pwm(aes(window=window),data=dataframe,backFreq=uniprot_2013_12_freq,fontface="bold",size=8)+
+  stat_pwm(aes(window=window),data=dataframe,backFreq=uniprot_2013_12_freq,fontface="bold")+
   ggplot2::scale_x_continuous(name="Position",breaks=(-1*window_width):window_width)+
   ggplot2::scale_y_continuous(name="Relative frequency",breaks=c(0.0625,0.125,0.25,0.5,1,seq(2,20,by=2)),limits=c(2^-11,20),label=function(x) format(x,nsmall = 2,drop0trailing=T,scientific = FALSE))+
   ggplot2::coord_trans(y='log2')+
