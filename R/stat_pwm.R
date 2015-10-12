@@ -1,4 +1,5 @@
-#' Superimpose a function.
+#' Calculate the position-weighted-matrix for a window column
+#' @export
 stat_pwm <- function(mapping = NULL, data = NULL, geom = "text",
                           position = "identity",
                           show.legend = NA, inherit.aes = FALSE, backFreq=list(), ...) {
@@ -18,8 +19,8 @@ stat_pwm <- function(mapping = NULL, data = NULL, geom = "text",
 }
 
 #' @export
-PWMFunction <- ggproto("PWMFunction", Stat,
-                        default_aes = aes(color=..label..,size=abs(4*log2(..y..))),
+PWMFunction <- ggplot2::ggproto("PWMFunction", ggplot2::Stat,
+                        default_aes = ggplot2::aes(color=..label..,size=abs(4*log2(..y..))),
                         compute_panel = function(data, scales, backFreq=list(),zero=0.001) {
                           pwm = calculatePWM(data,'window')
                           pwm[pwm==0]<-zero
