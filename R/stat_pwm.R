@@ -2,7 +2,7 @@
 #' @export
 stat_pwm <- function(mapping = NULL, data = NULL, geom = "text",
                           position = "identity",
-                          show.legend = NA, inherit.aes = FALSE, backFreq=list(), ...) {
+                          show.legend = NA, inherit.aes = FALSE, backFreq=list(), drop.missing=F,...) {
   ggplot2::layer(
     data = data,
     mapping = mapping,
@@ -13,6 +13,7 @@ stat_pwm <- function(mapping = NULL, data = NULL, geom = "text",
     inherit.aes = inherit.aes,
     params = list(
       backFreq=backFreq,
+      drop.missing=drop.missing,
       ...
     )
   )
@@ -21,9 +22,19 @@ stat_pwm <- function(mapping = NULL, data = NULL, geom = "text",
 #' @export
 PWMFunction <- ggplot2::ggproto("PWMFunction", ggplot2::Stat,
                         default_aes = ggplot2::aes(color=..label..,size=abs(4*log2(..y..))),
-                        compute_panel = function(data, scales, backFreq=list(),zero=0.001) {
+                        compute_panel = function(data, scales, backFreq=list(),drop.missing=F) {
+                          message("Plotting ",length(unique(data$window))," windows")
                           pwm = calculatePWM(data,'window')
-                          pwm[pwm==0]<-zero
+                          if (drop.missing) {
+                            pwm[pwm==0]<-NA
+                            missing_names = apply(pwm,2,function(col) { names(col[is.na(col)]) } )
+                            missing_names[[ floor(length(missing_names)/2) + 1 ]] <- c(NA)
+                            print("Missing amino acid statistics")
+                            print(table(unlist(missing_names)))
+                            print(missing_names)
+                          } else {
+                            pwm[pwm==0]<- 0.001
+                          }
                           bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / backFreq[[x]] })
                           row.names(bval)<-names(backFreq)
                           bval <- bval[names(backFreq),]
