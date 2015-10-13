@@ -25,8 +25,11 @@ generateLogoPlot.old <- function(dataframe,windowcol,frequencies=c(),labels=T) {
 #'  @param   dataframe  Data frame containing at least one column (windowcol) that has the windows to plot
 #'  @return  berry logo plot
 #'  @export
-generateLogoPlot <- function(dataframe,colours="chemistry") {
+generateLogoPlot <- function(dataframe,windowcol='window',frequencies=c(),colours="chemistry") {
   uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
+  if(length(frequencies) < 1) {
+    frequencies <- uniprot_2013_12_freq
+  }
 
   hydrophobicity <- c(rep('#0000ff',6),rep('#00ff66',6),rep('#000000',8))
   names(hydrophobicity) <-  unlist(strsplit('RKDENQSGHTAPYVMCLFIW',''))
@@ -41,9 +44,8 @@ generateLogoPlot <- function(dataframe,colours="chemistry") {
   }
 
   window_width = ceiling(max(nchar(dataframe$window))/2)
-  library(ggplot2)
-  ggplot()+
-  stat_pwm(aes(window=window),data=dataframe,backFreq=uniprot_2013_12_freq[names(colour_scale)],drop.missing=T,fontface="bold")+
+  ggplot2::ggplot()+
+  stat_pwm(aes(window=window),data=dataframe,backFreq=frequencies[names(colour_scale)],drop.missing=T,fontface="bold")+
   ggplot2::scale_colour_manual(values=colour_scale)+
   ggplot2::scale_x_continuous(name="Position",breaks=(-1*window_width):window_width)+
   ggplot2::scale_y_continuous(name="Relative frequency",breaks=c(0.0625,0.125,0.25,0.5,1,seq(2,20,by=2)),label=function(x) format(x,nsmall = 2,drop0trailing=T,scientific = FALSE))+
