@@ -34,6 +34,7 @@ parser_v1 <- function(rows,rKeys) {
 					multiple.protein=row$multi_protein,
 					quantification=NA,
 					quantification_mad=NA,
+					quant_confidence='high',
 					composition=join_composition(row$composition),
 					source=row$source
 				)
@@ -52,6 +53,9 @@ parser_v1 <- function(rows,rKeys) {
 			base$quantification <- row$quant$quant
 			if ('mad' %in% names(row$quant)) {
 				base$quantification_mad <- row$quant$mad
+			}
+			if ('singlet_confidence' %in% names(row$quant)) {
+				base$quant_confidence <- row$quant$singlet_confidence
 			}
 		}
 
