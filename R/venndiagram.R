@@ -70,7 +70,7 @@ stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 #' @export
 PeptideStat <- ggplot2::ggproto("PeptideStat", ggplot2::Stat,
                         required_aes = c('class','peptide.key','peptide','site'),
-                        default_aes = aes(category=category,value=value),
+                        default_aes = ggplot2::aes(category=category,value=value),
                         compute_panel = function(data, scales) {
                           specific.peps = data[,c('class','peptide.key','peptide','site')]
                           specific.peps = plyr::ddply(specific.peps,'peptide.key',function(peps) {
