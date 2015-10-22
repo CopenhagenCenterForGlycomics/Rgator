@@ -38,7 +38,7 @@ generateVennDiagramGrob <- function(data=list()) {
   if ('package:futile.logger' %in% search()) {
     flog.threshold(futile.logger::FATAL+1,name='VennDiagramLogger')
   }
-  plot = (grid::gTree(children = grid::gList(grid::grid.grabExpr(grid::grid.draw(getNamespace('VennDiagram')$venn.diagram(data,filename=NULL)))), cl=c("arrange")))
+  plot = ( getNamespace('VennDiagram')$venn.diagram(data,filename=NULL) )
   if ( ! package_attached ) {
     detach('package:VennDiagram')
   }
@@ -74,7 +74,6 @@ PeptideStat <- ggplot2::ggproto("PeptideStat", ggplot2::Stat,
                         compute_panel = function(data, scales) {
                           specific.peps = data[,c('class','peptide.key','peptide','site')]
                           specific.peps = plyr::ddply(specific.peps,'peptide.key',function(peps) {
-                            browser()
                             peps$site.key = paste(sort(peps$site),collapse='-')
                             peps
                           })
@@ -82,7 +81,6 @@ PeptideStat <- ggplot2::ggproto("PeptideStat", ggplot2::Stat,
                           specific.peps$key = paste(specific.peps$peptide,specific.peps$site.key,sep='-')
                           result = specific.peps[,c('class','key')]
                           names(result) = c('category','value')
-                          browser()
                           result
                         }
 )
@@ -92,7 +90,7 @@ PeptideStat <- ggplot2::ggproto("PeptideStat", ggplot2::Stat,
 #' @export
 geom_venn <- function(mapping = NULL, data = NULL, stat = "identity",
                           position = "identity",
-                          show.legend = NA, inherit.aes = FALSE,...) {
+                          show.legend = NA, inherit.aes = FALSE,na.rm=T,...) {
   ggplot2::layer(
     data = data,
     mapping = mapping,
@@ -102,6 +100,7 @@ geom_venn <- function(mapping = NULL, data = NULL, stat = "identity",
     show.legend = show.legend,
     inherit.aes = inherit.aes,
     params = list(
+      na.rm=na.rm,
       ...
     )
   )
@@ -113,11 +112,11 @@ GeomVennDiagram <- ggplot2::ggproto("GeomVennDiagram", ggplot2::Geom,
                         default_aes = ggplot2::aes(),
                         draw_panel = function(data, scales,coord) {
                           coords <- coord$transform(data,scales)
-                          cats = unique(data$category)
+                          cats = sort(unique(data$category))
                           lists = sapply(cats, function(cat) {
                             data[data$category == cat,'value']
                           },simplify=F)
                           names(lists) = cats
-                          generateVennDiagramGrob(lists)
+                          return(generateVennDiagramGrob(lists))
                         }
 )
