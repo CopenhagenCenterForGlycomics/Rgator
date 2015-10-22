@@ -74,13 +74,15 @@ PeptideStat <- ggplot2::ggproto("PeptideStat", ggplot2::Stat,
                         compute_panel = function(data, scales) {
                           specific.peps = data[,c('class','peptide.key','peptide','site')]
                           specific.peps = plyr::ddply(specific.peps,'peptide.key',function(peps) {
-                            peps$site.key = paste(sort(peps$site),sep='-')
+                            browser()
+                            peps$site.key = paste(sort(peps$site),collapse='-')
                             peps
                           })
                           specific.peps$site = NULL
                           specific.peps$key = paste(specific.peps$peptide,specific.peps$site.key,sep='-')
                           result = specific.peps[,c('class','key')]
                           names(result) = c('category','value')
+                          browser()
                           result
                         }
 )
