@@ -18,7 +18,7 @@ generateVennDiagram <- function(...) {
     data.frame(category=category,value=data[[category]])
   },names(data)))
   ggplot() +
-    ggplot2::theme_bw() + geom_venn(aes(category=category,value=value),data=categories)  +
+    ggplot2::theme_bw() + geom_venn(ggplot2::aes(category=category,value=value),data=categories)  +
     theme(  line = element_blank(),
         axis.text.x=element_blank(),
         axis.title.x=element_blank(),
