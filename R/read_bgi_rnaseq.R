@@ -22,6 +22,25 @@ bgi_readBasicExpressionData <- function(filename='all.gene.rpkm.xls') {
   dats
 }
 
+# Make a test case from this
+# http://www.rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/
+# https://stat.ethz.ch/pipermail/bioconductor/2011-May/039244.html
+# http://barcwiki.wi.mit.edu/wiki/SOPs/rna-seq-diff-expressions
+# doi: 10.1093/bib/bbs046 "A comprehensive evaluation of normalization methods for Illumina high-throughput RNA sequencing data analysis"
+# http://blog.nextgenetics.net/?e=51
+
+
+#' Calclate TPM (RSEM) values for a count matrix
+#'@export
+rnaseq.calculateTPM <- function(all.reads,lengths,method=c("TMM","RLE","upperquartile","none")) {
+	normalised = t(t(as.matrix(all.reads)) * edgeR::calcNormFactors(as.matrix(all.reads),method=method))
+	rpks = normalised / lengths
+	tpms = rpks /  ( colSums(rpks) / 1e06 )
+	rownames(tpms) = rownames(all.reads)
+	colnames(tpms) = paste(colnames(all.reads),'tpm',sep='.')
+	cbind(all.reads,as.data.frame(tpms))
+}
+
 get_reads_for_design <- function(all.reads,...) {
 	design<-list(...)
 	design.reads <- all.reads[,unlist(design)]
