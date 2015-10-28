@@ -33,7 +33,7 @@ bgi_readBasicExpressionData <- function(filename='all.gene.rpkm.xls') {
 #' Calclate TPM (RSEM) values for a count matrix
 #'@export
 rnaseq.calculateTPM <- function(all.reads,lengths,method=c("TMM","RLE","upperquartile","none")) {
-	normalised = t(t(as.matrix(all.reads)) * edgeR::calcNormFactors(as.matrix(all.reads),method=method))
+	normalised = t(t(as.matrix(all.reads)) / edgeR::calcNormFactors(as.matrix(all.reads),method=method))
 	rpks = normalised / lengths
 	tpms = rpks /  ( colSums(rpks) / 1e06 )
 	rownames(tpms) = rownames(all.reads)
