@@ -35,6 +35,7 @@ bgi_readBasicExpressionData <- function(filename='all.gene.rpkm.xls') {
 rnaseq.calculateTPM <- function(all.reads,lengths,method=c("TMM","RLE","upperquartile","none","DESeq")) {
 	if (method == "DESeq") {
 		cds = DESeq::newCountDataSet(all.reads,rep('cond',ncol(all.reads)))
+		cds = DESeq::estimateSizeFactors(cds)
 		normalised = t(t(DESeq::counts(cds)) / DESeq::sizeFactors(cds))
 	} else {
 		calculated_factors = edgeR::calcNormFactors(as.matrix(all.reads),method=method)
