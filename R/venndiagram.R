@@ -53,13 +53,56 @@ stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
   ggplot2::layer(
     data = data,
     mapping = mapping,
-    stat = PeptideStat,
+    stat = MsdataStat,
     geom = geom,
     position = position,
     show.legend = show.legend,
     inherit.aes = inherit.aes,
     params = list(
       na.rm=na.rm,
+      level="peptide",
+      ...
+    )
+  )
+}
+
+#' Calculate the position-weighted-matrix for a window column
+#' @export
+stat_site <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
+                          position = "identity",
+                          show.legend = NA, inherit.aes = TRUE,na.rm=T, ...) {
+  ggplot2::layer(
+    data = data,
+    mapping = mapping,
+    stat = MsdataStat,
+    geom = geom,
+    position = position,
+    show.legend = show.legend,
+    inherit.aes = inherit.aes,
+    params = list(
+      na.rm=na.rm,
+      level="site",
+      ...
+    )
+  )
+}
+
+#' Calculate the position-weighted-matrix for a window column
+#' @export
+stat_protein <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
+                          position = "identity",
+                          show.legend = NA, inherit.aes = TRUE,na.rm=T, ...) {
+  ggplot2::layer(
+    data = data,
+    mapping = mapping,
+    stat = MsdataStat,
+    geom = geom,
+    position = position,
+    show.legend = show.legend,
+    inherit.aes = inherit.aes,
+    params = list(
+      na.rm=na.rm,
+      level="protein",
       ...
     )
   )
@@ -68,20 +111,34 @@ stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 
 #' msdata to peptide stat
 #' @export
-PeptideStat <- ggplot2::ggproto("PeptideStat", ggplot2::Stat,
-                        required_aes = c('class','peptide.key','peptide','site'),
+MsdataStat <- ggplot2::ggproto("MsdataStat", ggplot2::Stat,
+                        required_aes = c('class','peptide.key', 'uniprot', 'peptide', 'site'),
                         default_aes = ggplot2::aes(category=category,value=value),
-                        compute_panel = function(data, scales) {
-                          specific.peps = data[,c('class','peptide.key','peptide','site')]
-                          specific.peps = plyr::ddply(specific.peps,'peptide.key',function(peps) {
-                            peps$site.key = paste(sort(peps$site),collapse='-')
-                            peps
-                          })
-                          specific.peps$site = NULL
-                          specific.peps$key = paste(specific.peps$peptide,specific.peps$site.key,sep='-')
-                          result = specific.peps[,c('class','key')]
+                        compute_panel = function(data, scales, level=c("site","peptide","protein")) {
+                          if (level == "peptide") {
+                            specific.peps = data[,c('class','peptide.key','peptide','site')]
+                            get_sites = function(peps) {
+                              peps$site.key = paste(sort(peps$site),collapse='-')
+                              peps
+                            }
+                            specific.peps = dplyr::do(dplyr::group_by(specific.peps,peptide.key), get_sites(.))
+                            specific.peps$site = NULL
+                            specific.peps$key = paste(specific.peps$peptide,specific.peps$site.key,sep='-')
+                            result = specific.peps[,c('class','key')]
+                          }
+                          if (level == "site") {
+                            specific.sites = data[,c('class','uniprot','site')]
+                            specific.sites$key = paste(specific.sites$uniprot,specific.sites$site,sep='-')
+                            result = specific.sites[,c('class','key')]
+                          }
+                          if (level == "protein") {
+                            specific.prots = data[,c('class','uniprot')]
+                            specific.prots$key = specific.prots$uniprot
+                            result = specific.prots[,c('class','key')]
+                          }
                           names(result) = c('category','value')
-                          result
+                          message(nrow(unique(result)))
+                          unique(result)
                         }
 )
 
