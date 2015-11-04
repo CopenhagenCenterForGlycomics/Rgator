@@ -45,19 +45,28 @@ generateVennDiagramGrob <- function(data=list()) {
   return (plot)
 }
 
+msdata_default_aes <- function(mapping) {
+  default_mapping = aes(peptide.key=factor(peptide.key),uniprot=factor(uniprot),peptide=factor(peptide),site=site)
+  if (is.null(mapping)) {
+    mapping = default_mapping
+  }
+  default_mapping = default_mapping[ ! names(default_mapping) %in% names(mapping), ]
+  mapping = do.call( ggplot2::aes, c( mapping, default_mapping ) )
+}
+
 #' Calculate the position-weighted-matrix for a window column
 #' @export
 stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
                           position = "identity",
-                          show.legend = NA, inherit.aes = TRUE,na.rm=T, ...) {
+                          show.legend = NA, na.rm=T, ...) {
   ggplot2::layer(
     data = data,
-    mapping = mapping,
+    mapping = msdata_default_aes(mapping),
     stat = MsdataStat,
     geom = geom,
     position = position,
     show.legend = show.legend,
-    inherit.aes = inherit.aes,
+    inherit.aes = FALSE,
     params = list(
       na.rm=na.rm,
       level="peptide",
@@ -70,15 +79,15 @@ stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 #' @export
 stat_site <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
                           position = "identity",
-                          show.legend = NA, inherit.aes = TRUE,na.rm=T, ...) {
+                          show.legend = NA, na.rm=T, ...) {
   ggplot2::layer(
     data = data,
-    mapping = mapping,
+    mapping = msdata_default_aes(mapping),
     stat = MsdataStat,
     geom = geom,
     position = position,
     show.legend = show.legend,
-    inherit.aes = inherit.aes,
+    inherit.aes = FALSE,
     params = list(
       na.rm=na.rm,
       level="site",
@@ -91,15 +100,15 @@ stat_site <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 #' @export
 stat_protein <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
                           position = "identity",
-                          show.legend = NA, inherit.aes = TRUE,na.rm=T, ...) {
+                          show.legend = NA, na.rm=T, ...) {
   ggplot2::layer(
     data = data,
-    mapping = mapping,
+    mapping = msdata_default_aes(mapping),
     stat = MsdataStat,
     geom = geom,
     position = position,
     show.legend = show.legend,
-    inherit.aes = inherit.aes,
+    inherit.aes = FALSE,
     params = list(
       na.rm=na.rm,
       level="protein",
