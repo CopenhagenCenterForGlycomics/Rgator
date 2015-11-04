@@ -58,7 +58,7 @@ msdata_default_aes <- function(mapping) {
 #' @export
 stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
                           position = "identity",
-                          show.legend = NA, na.rm=T, ...) {
+                          show.legend = NA,ambiguous=F,cleaned=TRUE,na.rm=T,...) {
   ggplot2::layer(
     data = data,
     mapping = msdata_default_aes(mapping),
@@ -68,8 +68,10 @@ stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
     show.legend = show.legend,
     inherit.aes = FALSE,
     params = list(
-      na.rm=na.rm,
       level="peptide",
+      ambiguous=ambiguous,
+      cleaned=cleaned,
+      na.rm=na.rm,
       ...
     )
   )
@@ -79,7 +81,7 @@ stat_peptide <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 #' @export
 stat_site <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
                           position = "identity",
-                          show.legend = NA, na.rm=T, ...) {
+                          show.legend = NA,ambiguous=F,cleaned=TRUE,na.rm=T,...) {
   ggplot2::layer(
     data = data,
     mapping = msdata_default_aes(mapping),
@@ -89,8 +91,10 @@ stat_site <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
     show.legend = show.legend,
     inherit.aes = FALSE,
     params = list(
-      na.rm=na.rm,
       level="site",
+      ambiguous=ambiguous,
+      cleaned=cleaned,
+      na.rm=na.rm,
       ...
     )
   )
@@ -100,7 +104,7 @@ stat_site <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 #' @export
 stat_protein <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
                           position = "identity",
-                          show.legend = NA, na.rm=T, ...) {
+                          show.legend = NA, ambiguous=F,cleaned=TRUE,na.rm=T,...) {
   ggplot2::layer(
     data = data,
     mapping = msdata_default_aes(mapping),
@@ -110,8 +114,10 @@ stat_protein <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
     show.legend = show.legend,
     inherit.aes = FALSE,
     params = list(
-      na.rm=na.rm,
       level="protein",
+      ambiguous=ambiguous,
+      cleaned=cleaned,
+      na.rm=na.rm,
       ...
     )
   )
@@ -123,6 +129,13 @@ stat_protein <- function(mapping = NULL, data = NULL, geom = "vennDiagram",
 MsdataStat <- ggplot2::ggproto("MsdataStat", ggplot2::Stat,
                         required_aes = c('class','peptide.key', 'uniprot', 'peptide', 'site'),
                         default_aes = ggplot2::aes(category=category,value=value),
+                        extra_params = c('ambiguous','cleaned','na.rm'),
+                        setup_data = function(data,params) {
+                          if ( ! params$ambiguous ) {
+                            data = data[ ! is.na(data$site),]
+                          }
+                          data
+                        },
                         compute_panel = function(data, scales, level=c("site","peptide","protein")) {
                           if (level == "peptide") {
                             specific.peps = data[,c('class','peptide.key','peptide','site')]
