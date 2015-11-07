@@ -303,7 +303,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
   domdat$sequence <- NULL
   real <- subset( domdat, ((as.numeric(end) - as.numeric(start)) / aalength < max_dom_proportion ))
-  inside <- subset( subset (  real ,  ( (as.numeric(real[[sitecol]]) >= as.numeric(start)) & (as.numeric(real[[sitecol]]) <= as.numeric(end))  )  ), ! grepl("tmhmm",dom))
+  inside <- subset( subset (  real ,  ( (as.numeric(real[[sitecol]]) >= as.numeric(start)) & (as.numeric(real[[sitecol]]) <= as.numeric(end))  )  ), ! grepl("tmhmm",dom) & ! grepl("TMHelix", dom) )
   outside <- subset ( real , ! sitekey %in% inside$sitekey & dom != 'tmhmm-outside' & dom != 'tmhmm-inside' )
   sitekeys_nterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) < as.numeric(start) )$sitekey)
   sitekeys_cterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) > as.numeric(end) )$sitekey)
@@ -312,7 +312,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
   typeii <- unique(plyr::ddply(between,plyr::.(sitekey),function(input) {
     df <- unique(subset(input,select=c('dom','start','end','sitekey')))
     signals <- subset(df, dom == 'SIGNALP')
-    tms <- subset(df, dom == "tmhmm-TMhelix")
+    tms <- subset(df, grepl("TMhelix",dom))
     if (dim(signals)[1] < 1) {
       if (dim(tms)[1] == 1) {
         return (input)
@@ -321,8 +321,8 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     }
     signal_start <- signals$start[1]
     signal_end <- signals$end[1]
-    tms <- subset(df, dom == "tmhmm-TMhelix" & as.numeric(start) < as.numeric(signal_end) )
-    other_tms <- subset(df, dom == "tmhmm-TMhelix" & as.numeric(start) > as.numeric(signal_end) )
+    tms <- subset(df, grepl("TMHelix",dom) & as.numeric(start) < as.numeric(signal_end) )
+    other_tms <- subset(df, grepl("TMHelix",dom) & as.numeric(start) > as.numeric(signal_end) )
 
     if (dim(tms)[1] > 0 & dim(other_tms)[1] == 0) {
       return (input)
@@ -341,7 +341,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     filtered <- filtered[order(filtered$siteend),]
     # We have a SIGNALP or TMHELIX -- something...
     # This is a type II transmembrane
-    if (( (filtered$dom[1] == "SIGNALP") | grepl("tmhmm-TMhelix",filtered$dom[1]) ) & (filtered$uniprot[1] %in% typeii )) {
+    if (( (filtered$dom[1] == "SIGNALP") | grepl("TMhelix",filtered$dom[1]) ) & (filtered$uniprot[1] %in% typeii )) {
       # Grab all the C-terminal domains within the stem distance of the site
       # Grab all the N-terminal domains within the stem distance of the site, and closer than the closest SIGNALP or TM (i.e the closest SIGNALP or TM)
       wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
@@ -358,7 +358,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
 
     # All the N-terminal domains, our site is C-terminal of the domain
-    filtered <- subset(subset(df,siteend>0),dom != 'tmhmm-TMhelix')
+    filtered <- subset(subset(df,siteend>0),! grepl("TMHelix",dom))
     filtered <- filtered[order(filtered$siteend),]
     # We have a SIGNALP -- something...
     # If we've got a signalp then it is secreted
@@ -387,7 +387,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
 
     # If we have a domain spanning the transmembrane, we want to call this a type I transmembrane too
 
-    if ( ((dim(filtered)[1] >= 1) & ( filtered$dom[1] == "tmhmm-TMhelix" )) | ((dim(filtered)[1] >= 2) & (filtered$dom[2] == "tmhmm-TMhelix") & (as.numeric(filtered$end[1]) > as.numeric(filtered$end[2]) ) )) {
+    if ( ((dim(filtered)[1] >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((dim(filtered)[1] >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$end[1]) > as.numeric(filtered$end[2]) ) )) {
       wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance & startsite <= filtered$startsite[1] ) | (siteend > 0 & siteend <= stem_distance)))
       wanted$siteend <- NULL
       wanted$startsite <- NULL
