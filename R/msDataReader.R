@@ -1,11 +1,19 @@
 chooseMsDataParser <- function(wanted_version) {
-	if (wanted_version == '1') {
+	if (wanted_version == "1") {
+		wanted_version = '1.0'
+	}
+	version_info = package_version(wanted_version)
+	if (version_info <= '1.1.999') {
 		return(parser_v1);
 	}
 }
 
 getMsDataVersionId <- function(msdata_version,data) {
-	if (msdata_version == '1') {
+	if (msdata_version == "1") {
+		msdata_version = '1.0'
+	}
+	version_info = package_version(msdata_version)
+	if (version_info <= '1.1.999') {
 		metadata = data$metadata
 		if ( is.list(metadata) ) {
 			metadata = data$metadata[[1]]
