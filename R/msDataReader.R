@@ -47,6 +47,7 @@ parser_v1 <- function(rows,rKeys) {
 					quantification_mad=NA,
 					quant_confidence='high',
 					composition=join_composition(row$composition),
+					site_ambiguity=NA,
 					source=row$source,
 					spectra=NA
 				)
@@ -64,6 +65,9 @@ parser_v1 <- function(rows,rKeys) {
 			base$ambiguous <- paste(row$ambiguous_mods,collapse=';')
 		}
 
+		if ('made_ambiguous' %in% names(row)) {
+			base$site_ambiguity = row[['made_ambiguous']]
+		}
 		if ('quant' %in% names(row)) {
 			base$quantification <- row$quant$quant
 			if ('mad' %in% names(row$quant)) {
