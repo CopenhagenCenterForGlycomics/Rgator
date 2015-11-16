@@ -395,12 +395,44 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     }
     return ()
   },.progress="text")
+  message("Identifying multipass proteins")
+  multipass_loop = unique(plyr::ddply(stem_typei,'sitekey',function(doms) {
+    if (length(unique(doms$start[grepl("TMhelix",doms$dom)])) > 1) {
+      doms$start <- as.numeric(doms$start)
+      doms$siteend <- as.numeric(doms[['site']]) - as.numeric(doms$end)
+      doms$startsite <- as.numeric(doms$start) - as.numeric(doms[['site']])
+      # All the N-terminal domains, our site is C-terminal of the domain
+      filtered <- subset(doms,siteend>0)
+      filtered <- filtered[order(filtered$siteend),]
+        if ( ((dim(filtered)[1] >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((dim(filtered)[1] >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$start[1]) < as.numeric(filtered$start[2]) ) )) {
+          return (doms[grepl("TMhelix",doms$dom),c('uniprot','dom','start','end','site','aalength','sitekey')])
+        }
+    }
+    return()
+  }))
+  stem_typei = stem_typei[ ! stem_typei$sitekey %in% multipass_loop$sitekey,]
 
-  interdomain <- subset(between, ! sitekey %in% stem_typei$sitekey & ! sitekey %in% stem_typeii$sitekey & ! sitekey %in% signalp_stem$sitekey )
+  interdomain <- subset(between, ! sitekey %in% stem_typei$sitekey & ! sitekey %in% stem_typeii$sitekey & ! sitekey %in% signalp_stem$sitekey & ! sitekey %in% multipass_loop$sitekey )
   norc <- subset(outside, ! sitekey %in% between$sitekey )
+  norc_multipass <- plyr::ddply(norc,'sitekey',function(doms) {
+    if ( nrow(unique(doms[grepl("TMhelix",doms$dom),])) > 1 ) {
+      return(doms)
+    }
+  })
+  norc_soluble <- plyr::ddply(norc,'sitekey',function(doms) {
+    if ( nrow(unique(doms[grepl("TMhelix",doms$dom),])) == 0 ) {
+      return(doms)
+    }
+  })
+  cterm = norc_soluble[  norc_soluble$aalength - norc_soluble$site <= stem_distance, ]
+  nterm = norc_soluble[  norc_soluble$site <= stem_distance, ]
+
+  norc = norc[ ! norc$sitekey %in% norc_multipass$sitekey ,]
+  norc_membrane = norc[ ! norc$sitekey %in% c(norc_soluble$sitekey, norc_multipass$sitekey), ]
+
   #Stem = Betweeen where closest N-terminal = SIGNALP/TMHMM
   #ddply between by sitekey if (site - end), sort asc [1] $dom == tmhmmm/signalp return df
   #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
   #                         else return empty
-  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, stem=rbind(stem_typei,stem_typeii,signalp_stem), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc  )  )
+  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, multipass.loop=multipass_loop, multipass.tail=norc_multipass, stem=rbind(stem_typei,stem_typeii,signalp_stem), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc, norc_membrane=norc_membrane, norc_soluble=norc_soluble, cterm_soluble=cterm, nterm_soluble=nterm  )  )
 }
