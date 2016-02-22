@@ -105,6 +105,58 @@ downloadInterproDomains <- function(...) {
   })
 }
 
+downloadTransmembrane <- function(...) {
+  organism = as.character(list(...))
+  for (org in organism) {
+    tms <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=&format=tab&columns=id,feature(TRANSMEMBRANE)&fil=organism%3A",org,sep=''),paste('disulfide-uniprot-',org,sep=''),header=T);
+    extracted = plyr::llply( Map( function(prot) { Filter(function(str) { grepl("TRANSMEM",str) }, prot) } , strsplit(tms$Transmembrane,'; ',perl=T)), function(el) {
+      res = Map( function(splt) {
+        if (splt[1] == "TRANSMEM") {
+          c( as.numeric(splt[c(2,3)]), "uniprot-TMhelix")
+        }
+      }, strsplit(el,' '))
+      return (res)
+    })
+    names(extracted) <- tolower(tms$Entry)
+    fixed = plyr::ldply(Filter(length,extracted),function(prot) {
+      as.data.frame(matrix(unlist(prot),ncol = 3,byrow=T))
+    })
+    names(fixed) <- c('uniprot','start','end','dom')
+    attributes(fixed)$version <- paste('UniProt',attributes(tms)$version,sep='_')
+    fixed = fixed[,c('uniprot','dom','start','end')]
+    data.env = getDataEnvironment()
+    data.env[[ paste('transmembrane.uniprot.',org,sep='') ]] <- fixed
+    saveEnvironment()
+    updateDataVersions()
+  }
+}
+
+downloadSignalPep <- function(...) {
+  organism = as.character(list(...))
+  for (org in organism) {
+    signals <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=&format=tab&columns=id,feature(SIGNAL)&fil=organism%3A",org,sep=''),paste('disulfide-uniprot-',org,sep=''),header=T);
+    extracted = plyr::llply( Map( function(prot) { Filter(function(str) { grepl("SIGNAL",str) }, prot) } , strsplit(signals[['Signal peptide']],'; ',perl=T)), function(el) {
+      res = Map( function(splt) {
+        if (splt[1] == "SIGNAL") {
+          c( as.numeric(splt[c(2,3)]), "SIGNALP")
+        }
+      }, strsplit(el,' '))
+      return (res)
+    })
+    names(extracted) <- tolower(signals$Entry)
+    fixed = plyr::ldply(Filter(length,extracted),function(prot) {
+      as.data.frame(matrix(unlist(prot),ncol = 3,byrow=T))
+    })
+    names(fixed) <- c('uniprot','start','end','dom')
+    attributes(fixed)$version <- paste('UniProt',attributes(signals)$version,sep='_')
+    fixed = fixed[,c('uniprot','dom','start','end')]
+    data.env = getDataEnvironment()
+    data.env[[ paste('signal.uniprot.',org,sep='') ]] <- fixed
+    saveEnvironment()
+    updateDataVersions()
+  }
+}
+
 downloadDisulfides <- function(...) {
   organism = as.character(list(...))
   for (org in organism) {
