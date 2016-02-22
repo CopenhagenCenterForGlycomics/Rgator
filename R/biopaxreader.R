@@ -227,34 +227,34 @@ makeScaleMultiple <- function(...) {
         zeroes = sapply(all.cols, function(x) { x$middle },USE.NAMES=T,simplify=F) )
 }
 
-require(proto)
-GeomTextBackground <- proto(ggplot2:::GeomText, {
-  objname <- "backgroundtext"
-  draw <- function(., data, scales, coordinates, ..., parse = FALSE,
-                   expand = 1.2, bgcol = "grey50", bgfill = NA, bgalpha = 1) {
-    lab <- data$label
-    if (parse) {
-      lab <- parse(text = lab)
-    }
-    with(ggplot2:::coord_transform(coordinates, data, scales), {
-      sizes <- plyr::llply(1:nrow(data),
-        function(i) with(data[i, ], {
-          grobs <- grid::textGrob(lab[i], default.units="native", rot=angle, gp=grid::gpar(fontsize=size * .pt))
-          list(w = grid::grobWidth(grobs), h = grid::grobHeight(grobs))
-        }))
-      widths = do.call(grid::unit.c, lapply(sizes, "[[", "w")) * expand
-      heights = do.call(grid::unit.c, lapply(sizes, "[[", "h")) * expand
-      rectgrobs <- as.vector(lapply(1:length(x),function(idx) { 
-        grid::roundrectGrob(x[idx], y[idx],
-                     width = widths[idx],
-                     height = heights[idx],
-                     r = heights*0.25,
-                     gp = grid::gpar(col = scales::alpha(bgcol, bgalpha), fill = scales::alpha(bgfill, bgalpha)))
-      }))
-      grid::gList( do.call(grid::gList,rectgrobs), .super$draw(., data, scales, coordinates, ..., parse))
-    })
-  }
-})
+# require(proto)
+# GeomTextBackground <- proto(ggplot2:::GeomText, {
+#   objname <- "backgroundtext"
+#   draw <- function(., data, scales, coordinates, ..., parse = FALSE,
+#                    expand = 1.2, bgcol = "grey50", bgfill = NA, bgalpha = 1) {
+#     lab <- data$label
+#     if (parse) {
+#       lab <- parse(text = lab)
+#     }
+#     with(ggplot2:::coord_transform(coordinates, data, scales), {
+#       sizes <- plyr::llply(1:nrow(data),
+#         function(i) with(data[i, ], {
+#           grobs <- grid::textGrob(lab[i], default.units="native", rot=angle, gp=grid::gpar(fontsize=size * .pt))
+#           list(w = grid::grobWidth(grobs), h = grid::grobHeight(grobs))
+#         }))
+#       widths = do.call(grid::unit.c, lapply(sizes, "[[", "w")) * expand
+#       heights = do.call(grid::unit.c, lapply(sizes, "[[", "h")) * expand
+#       rectgrobs <- as.vector(lapply(1:length(x),function(idx) { 
+#         grid::roundrectGrob(x[idx], y[idx],
+#                      width = widths[idx],
+#                      height = heights[idx],
+#                      r = heights*0.25,
+#                      gp = grid::gpar(col = scales::alpha(bgcol, bgalpha), fill = scales::alpha(bgfill, bgalpha)))
+#       }))
+#       grid::gList( do.call(grid::gList,rectgrobs), .super$draw(., data, scales, coordinates, ..., parse))
+#     })
+#   }
+# })
 
 #' Rendering of text labels with a roundrect background on them
 #'
