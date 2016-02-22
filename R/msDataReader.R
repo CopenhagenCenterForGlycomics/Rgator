@@ -31,7 +31,6 @@ parser_v1 <- function(rows,rKeys) {
 	row <- rows[[1]]
 	as.data.frame(do.call("rbind", lapply(rows,function(row) {
 		peptide_id <- substring(tempfile(pattern="peptide",tmpdir=''),2)
-
 		base <- data.frame(	peptide=row$sequence,
 					peptide.key=peptide_id,
 					peptide.start=row$peptide_start,
@@ -39,7 +38,7 @@ parser_v1 <- function(rows,rKeys) {
 					site=NA,
 					site.composition=NA,
 					ambiguous=NA,
-					multiple.protein=row$multi_protein,
+					multiple.protein=ifelse(is.null(row$multi_protein),FALSE,row$multi_protein),
 					quantification=NA,
 					quantification_mad=NA,
 					quant_confidence='high',
