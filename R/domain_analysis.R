@@ -381,10 +381,9 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
 
     # All the C-terminal domains, our site is N-terminal of the domain
     # This is a type I transmembrane
-    filtered <- subset(df,startsite>0)
+    filtered <- subset(df,startsite>0 & startsite < stem_distance)
     filtered <- filtered[order(filtered$startsite),]
     # We have a something -- TMHELIX
-
     # If we have a domain spanning the transmembrane, we want to call this a type I transmembrane too
 
     if ( ((dim(filtered)[1] >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((dim(filtered)[1] >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$end[1]) > as.numeric(filtered$end[2]) ) )) {
