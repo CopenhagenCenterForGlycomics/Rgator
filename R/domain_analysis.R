@@ -378,16 +378,24 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     df$start <- as.numeric(df$start)
     df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
     df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
-
     # All the C-terminal domains, our site is N-terminal of the domain
     # This is a type I transmembrane
-    filtered <- subset(df,startsite>0 & startsite < stem_distance)
+    filtered <- subset(df,startsite>0)
     filtered <- filtered[order(filtered$startsite),]
     # We have a something -- TMHELIX
     # If we have a domain spanning the transmembrane, we want to call this a type I transmembrane too
 
+    # FIXME - we should really be removing the domains that are overlapping with any TMs because they
+    # screw up the detection of the loops in the multipass section
+
     if ( ((dim(filtered)[1] >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((dim(filtered)[1] >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$end[1]) > as.numeric(filtered$end[2]) ) )) {
-      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance & startsite <= filtered$startsite[1] ) | (siteend > 0 & siteend <= stem_distance)))
+      min_siteend = min(df[df$siteend > 0,]$siteend)
+      closest_doms = df[df$siteend == min_siteend,'dom']
+      closest_tm_end = c(-1e10)
+      if (any(grepl("TMhelix",closest_doms))) {
+        closest_tm_end = min_siteend
+      }
+      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance & startsite <= filtered$startsite[1] ) | (siteend > 0 & siteend <= stem_distance) | siteend == closest_tm_end | (closest_tm_end > 0 & grepl("TMhelix", dom) & startsite <= filtered[grepl("TMhelix", filtered$dom),]$startsite[1]) ))
       wanted$siteend <- NULL
       wanted$startsite <- NULL
       return (wanted)
