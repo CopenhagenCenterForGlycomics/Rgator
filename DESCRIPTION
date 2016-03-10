@@ -24,6 +24,7 @@ Imports:
   httpuv,
   ggplot2,
   sna,
+  digest,
   jsonlite
 Suggests: colbycol
 License:  TBD

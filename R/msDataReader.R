@@ -26,6 +26,10 @@ join_composition <- function(composition) {
 	paste(composition,collapse=';')
 }
 
+spectrum_key <- function(spectrum) {
+	paste(c(round(spectrum$rt,3),spectrum$scan,spectrum$charge,round(spectrum$ppm,2),round(spectrum$score,2)),collapse='|')
+}
+
 
 parser_v1 <- function(rows,rKeys) {
 	row <- rows[[1]]
@@ -43,8 +47,12 @@ parser_v1 <- function(rows,rKeys) {
 					quantification_mad=NA,
 					quant_confidence='high',
 					composition=join_composition(row$composition),
-					source=row$source
+					source=row$source,
+					spectra=NA
 				)
+		if ('spectra' %in% names(row)) {
+			base$spectra <- digest::digest( join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key )),"crc32")
+		}
 		if ('sites' %in% names(row)) {
 			num_sites <- length(row$sites)
 			base <- base[rep(seq_len(nrow(base)), num_sites), ]
