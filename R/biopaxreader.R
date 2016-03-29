@@ -226,7 +226,12 @@ makeScaleMultiple <- function(...) {
         rescaler = label_scales,
         zeroes = sapply(all.cols, function(x) { x$middle },USE.NAMES=T,simplify=F) )
 }
-
+GeomTextBackground <- ggplot2::ggproto("GeomTextBackground", ggplot2::GeomText,
+  draw_panel = function(self,data,panel_scales,coord,parse = FALSE, check_overlap = FALSE) {
+    textgrobs = self$super$draw_panel(data,panel_scales,coord,parse,check_overlap)
+    textgrobs
+  }
+)
 # require(proto)
 # GeomTextBackground <- proto(ggplot2:::GeomText, {
 #   objname <- "backgroundtext"
@@ -264,8 +269,29 @@ makeScaleMultiple <- function(...) {
 #' @param bgfill  Fill colour to use for the background roundrect
 #' @param bgalpha Alpha opacity for the background roundrect
 #' @export
-geom_text_background <- function (...) {
-  GeomTextBackground$new(...)
+geom_text_background <- function (mapping=NULL,data=NULL,stat="identity",position="identity",...,nudge_x=0,nudge_y=0,parse = FALSE, check_overlap = FALSE,na.rm = FALSE,show.legend = NA, inherit.aes = TRUE ) {
+  if (!missing(nudge_x) || !missing(nudge_y)) {
+    if (!missing(position)) {
+      stop("Specify either `position` or `nudge_x`/`nudge_y`", call. = FALSE)
+    }
+
+    position <- ggplot2::position_nudge(nudge_x, nudge_y)
+  }
+  ggplot2::layer(
+      data = data,
+      mapping = mapping,
+      stat = stat,
+      geom = GeomTextBackground,
+      position = position,
+      show.legend = show.legend,
+      inherit.aes = inherit.aes,
+      params = list(
+        parse = parse,
+        check_overlap = check_overlap,
+        na.rm = na.rm,
+        ...
+      )
+    )
 }
 
 #testing_expression <- data.frame(uniprot=c(rep('Q9UHC9',2),rep('O95477',2)),value=c(3,5,-3,0),datasource=c('rnaseq','ms','rnaseq','ms'))

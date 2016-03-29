@@ -30,15 +30,49 @@ bgi_readBasicExpressionData <- function(filename='all.gene.rpkm.xls') {
 # http://blog.nextgenetics.net/?e=51
 
 
-#' Calclate TPM (RSEM) values for a count matrix
+#' Calclate TPM (RSEM) values for a count matrix, doing optional normalisation
 #'@export
-rnaseq.calculateTPM <- function(all.reads,lengths,method=c("TMM","RLE","upperquartile","none")) {
-	normalised = t(t(as.matrix(all.reads)) * edgeR::calcNormFactors(as.matrix(all.reads),method=method))
-	rpks = normalised / lengths
-	tpms = rpks /  ( colSums(rpks) / 1e06 )
+rnaseq.calculateTPM <- function(all.reads,lengths,method=c("TMM","RLE","upperquartile","none","DESeq")) {
+	message("Normalising using ",method)
+	if (method == "none") {
+		rpks = all.reads / lengths
+		tpms = rpks /  ( colSums(rpks) / 1e06 )
+	} else if (method == "DESeq") {
+		cds = DESeq::newCountDataSet(all.reads,rep('cond',ncol(all.reads)))
+		cds = DESeq::estimateSizeFactors(cds)
+		normalised = t(t(DESeq::counts(cds)) / DESeq::sizeFactors(cds))
+		rpks = normalised / lengths
+		tpms = rpks /  ( colSums(rpks) / 1e06 )
+	} else {
+		normalised = edgeR::calcNormFactors(edgeR::DGEList(counts=all.reads,group=rep('cond',ncol(all.reads)) ),method=method)
+		rpkms = edgeR::rpkm(normalised,lengths,normalized.lib.sizes=T)
+		tpms = 1e06 * rpkms / colSums(rpkms)
+	}
 	rownames(tpms) = rownames(all.reads)
 	colnames(tpms) = paste(colnames(all.reads),'tpm',sep='.')
 	cbind(all.reads,as.data.frame(tpms))
+}
+
+#' Calclate RPKM values for a count matrix, doing optional normalisation
+#'@export
+rnaseq.calculateRPKM <- function(all.reads,lengths,method=c("TMM","RLE","upperquartile","none","DESeq")) {
+	message("Normalising using " ,method)
+	if (method == "none" ) {
+		reads = colSums(all.reads)
+		rpkms = 1e09 * ( all.reads  / lengths / reads )
+	} else if (method == "DESeq") {
+		cds = DESeq::newCountDataSet(all.reads,rep('cond',ncol(all.reads)))
+		cds = DESeq::estimateSizeFactors(cds)
+		normalised = t(t(DESeq::counts(cds)) / DESeq::sizeFactors(cds))
+		reads = colSums(normalised)
+		rpkms = 1e09 * ( normalised  / lengths / reads )
+	} else {
+		normalised = edgeR::calcNormFactors(edgeR::DGEList(counts=all.reads,group=rep('cond',ncol(all.reads)) ),method=method)
+		rpkms = edgeR::rpkm(normalised,lengths,normalized.lib.sizes=T)
+	}
+	rownames(rpkms) = rownames(all.reads)
+	colnames(rpkms) = paste(colnames(all.reads),'rpkm',sep='.')
+	cbind(all.reads,as.data.frame(rpkms))
 }
 
 get_reads_for_design <- function(all.reads,...) {
