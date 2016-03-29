@@ -108,7 +108,7 @@ downloadInterproDomains <- function(...) {
 downloadTransmembrane <- function(...) {
   organism = as.character(list(...))
   for (org in organism) {
-    tms <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=&format=tab&columns=id,feature(TRANSMEMBRANE)&fil=organism%3A",org,sep=''),paste('disulfide-uniprot-',org,sep=''),header=T);
+    tms <- cacheUniprotFile(paste("http://www.uniprot.org/uniprot/?query=&format=tab&columns=id,feature(TRANSMEMBRANE)&fil=organism%3A",org,sep=''),paste('transmembrane-uniprot-',org,sep=''),header=T);
     extracted = plyr::llply( Map( function(prot) { Filter(function(str) { grepl("TRANSMEM",str) }, prot) } , strsplit(tms$Transmembrane,'; ',perl=T)), function(el) {
       res = Map( function(splt) {
         if (splt[1] == "TRANSMEM") {
