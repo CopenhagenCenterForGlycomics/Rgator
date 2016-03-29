@@ -25,6 +25,7 @@ Imports:
   ggplot2,
   sna,
   digest,
-  jsonlite
+  jsonlite,
+  IRanges
 Suggests: colbycol
 License:  TBD

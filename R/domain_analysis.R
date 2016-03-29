@@ -221,6 +221,14 @@ downloadProcessing <- function(...) {
   ;
 }
 
+remove_tm_overlaps = function(domains) {
+  plyr::ddply(domains,c('uniprot'),function(doms) {
+    tmranges = IRanges::IRanges(as.numeric(doms[grepl("TMhelix",doms$dom),]$start), as.numeric(doms[grepl("TMhelix",doms$dom),]$end))
+    allranges =  IRanges::IRanges(as.numeric(doms$start), as.numeric(doms$end))
+    doms[(! allranges %over% tmranges) | (grepl("TMhelix",doms$dom)),]
+  })
+}
+
 #' Divide up sets of sites based on their site context
 #'
 #' It is useful to be able to classify sites so that you can see where the sites
@@ -294,10 +302,14 @@ downloadProcessing <- function(...) {
 # @importFrom plyr .
 # @importFrom plyr ddply
 #' @export
-calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100  ) {
+calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_proportion=0.81, stem_distance=100, remove_tm_overlaps = FALSE  ) {
   message("Retrieving Uniprot sequences")
   seqdat <- getUniprotSequences(unique(inputsites$uniprot))
   message("Retrieved sequences")
+  if (remove_tm_overlaps) {
+    message("Removing domain overlaps")
+    domaindata = remove_tm_overlaps(domaindata)
+  }
   domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot',allow.cartesian=TRUE)
   domdat$aalength <- nchar(domdat$sequence)
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
