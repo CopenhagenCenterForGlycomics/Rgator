@@ -27,6 +27,9 @@ join_composition <- function(composition) {
 }
 
 spectrum_key <- function(spectrum) {
+	if (is.null(spectrum$ppm)) {
+		spectrum$ppm = Inf
+	}
 	paste(c(round(spectrum$rt,3),spectrum$scan,spectrum$charge,round(spectrum$ppm,2),round(spectrum$score,2)),collapse='|')
 }
 
