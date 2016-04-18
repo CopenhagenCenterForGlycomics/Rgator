@@ -20,11 +20,11 @@ generateLogoPlot.old <- function(dataframe,windowcol,frequencies=c(),labels=T) {
   return (plot)
 }
 
-#'  Generate a Berry plot for a set of sequences
+#' Generate a Berry plot for a set of sequences
 #'
-#'  @param   dataframe  Data frame containing at least one column (windowcol) that has the windows to plot
-#'  @return  berry logo plot
-#'  @export
+#' @param   dataframe  Data frame containing at least one column (windowcol) that has the windows to plot
+#' @return  berry logo plot
+#' @export
 generateLogoPlot <- function(dataframe,windowcol='window',frequencies=c(),colours="chemistry") {
   uniprot_2013_12_freq <- list(A=0.0825,R=0.0553,N=0.0406,D=0.0545,C=0.0137,Q=0.0393,E=0.0675,G=0.0707,H=0.0227,I=0.0595,L=0.0966,K=0.0584,M=0.0242,F=0.0386,P=0.0470,S=0.0657,T=0.0534,W=0.0108,Y=0.0292,V=0.0686)
   if(length(frequencies) < 1) {
