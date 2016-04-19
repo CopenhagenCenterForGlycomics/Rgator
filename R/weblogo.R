@@ -53,6 +53,13 @@ generateLogoPlot <- function(dataframe,windowcol='window',frequencies=c(),colour
   ggplot2::theme_bw()
 }
 
+#' @export
+frequenciesFromWindows <- function(windows,codes=c('A','C', 'D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','V','W','Y','Z')) {
+  tabled = (table(unlist(strsplit(windows,''))))
+  tabled = tabled / sum(tabled)
+  tabled[ codes[! codes %in%  names(tabled)] ] = 0
+  as.list(tabled)
+}
 
 calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','V','W','Y','Z')) {
   aas <- t(data.matrix(apply(as.array(dataframe[[windowcol]]),1,FUN=function(x) { unlist(strsplit(x,''))})))
