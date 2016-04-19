@@ -32,7 +32,10 @@ getUniprotIds <- function(taxonomy) {
 #' @return  Data frame with UniProt identifier and sequence
 #' @export
 getUniprotSequences <- function(accessions,wait=0) {
-  wanted_accs <- tolower(accessions)
+  wanted_accs <- gsub("-.*","",tolower(accessions))
+  if (any(grepl("-",accessions))) {
+    message("Isoform retrieval currently buggy in UniProt, removing isoforms")
+  }
   loadParsedJson('gator.UniProtData')
   if (exists("gator.UniProtData")) {
     wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
@@ -87,6 +90,7 @@ getUniprotSequences <- function(accessions,wait=0) {
   seqs$uniprot <- tolower(seqs$uniprot)
   data.env = getDataEnvironment()
   data.env[[ 'gator.UniProtData']] <- as.data.frame(data.table::rbindlist( list(get('gator.UniProtData'), seqs)))
+  gator.UniProtData$uniprot = tolower(gator.UniProtData$uniprot)
   writeParsedJson('gator.UniProtData')
   Sys.sleep(wait)
   return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
