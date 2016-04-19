@@ -54,7 +54,15 @@ generateLogoPlot <- function(dataframe,windowcol='window',frequencies=c(),colour
 }
 
 #' @export
-frequenciesFromWindows <- function(windows,codes=c('A','C', 'D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','V','W','Y','Z')) {
+frequenciesFromWindows <- function(windows,positional=FALSE,codes=c('A','C', 'D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','V','W','Y','Z')) {
+  if (positional) {
+    return(as.data.frame(t(sapply(1:nchar(windows),function(pos) {
+      tabled = table(matrix(unlist(strsplit(windows,'')),ncol=nchar(windows),byrow = T)[,pos])
+      tabled = tabled / sum(tabled)
+      tabled[ codes[! codes %in%  names(tabled)] ] = 0
+      as.data.frame(as.list(tabled))[,codes]
+    }))))
+  }
   tabled = (table(unlist(strsplit(windows,''))))
   tabled = tabled / sum(tabled)
   tabled[ codes[! codes %in%  names(tabled)] ] = 0

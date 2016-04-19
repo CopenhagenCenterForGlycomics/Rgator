@@ -35,7 +35,7 @@ PWMFunction <- ggplot2::ggproto("PWMFunction", ggplot2::Stat,
                           } else {
                             pwm[pwm==0]<- 0.001
                           }
-                          bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / backFreq[[x]] })
+                          bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / unlist(backFreq[[x]]) })
                           row.names(bval)<-names(backFreq)
                           bval <- bval[names(backFreq),]
                           window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
