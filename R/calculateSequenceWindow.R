@@ -14,6 +14,7 @@
 #'    calculateSequenceWindow(df,'site',2)
 #' @export
 calculateSequenceWindow <- function(dataframe,sitecol,window) {
+  dataframe$uniprot = tolower(dataframe$uniprot)
   with_seqs <- unique(merge(dataframe,getUniprotSequences(unique(dataframe$uniprot)),by='uniprot'))
   with_seqs[[sitecol]] <- as.numeric(with_seqs[[sitecol]])
   with_seqs$endpos <- nchar(with_seqs$sequence) - with_seqs[[sitecol]] - window

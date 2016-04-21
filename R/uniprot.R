@@ -83,7 +83,7 @@ getUniprotSequences <- function(accessions,wait=0) {
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   if (length(names(seqs)) < 2) {
     message("Could not retrieve sequences")
-    message(accessions)
+    message(wanted_accs)
     return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
   }
   names(seqs) <- c('uniprot','sequence')
