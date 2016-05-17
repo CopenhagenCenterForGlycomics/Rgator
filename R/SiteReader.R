@@ -221,11 +221,11 @@ jsonParser <- function(data,keys) {
     }
     return (kidframe)
   } else {
+    if (length(currkeys) == 1 && currkeys[1] == "*") {
+      retval <-lapply( data, FUN=function(dat) { return ((jsonParser(dat,keys))) }  )
+      return (plyr::ldply(retval))
+    }
     if (length(keys) == 1) {
-      if (length(currkeys) > 0 && currkeys[1] == "*") {
-        retval <-lapply( data, FUN=function(dat) { return ((jsonParser(dat,keys))) }  )
-        return (plyr::ldply(retval))
-      }
       ##
       ## { "orthologs" : {"TAX1" : ["a","b","c"], "TAX2" : ["a","b"] }}
       ##
