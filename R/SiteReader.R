@@ -191,7 +191,7 @@ syncDatasets <- function() {
 }
 
 # @importFrom plyr ldply
-jsonParser <- function(data,keys) {
+jsonParser <- function(data,keys,attribs) {
   options(stringsAsFactors = FALSE)
   currkeys <- unique(sapply(keys,FUN=function(key) { if (length(grep("\\.",key))>0) { strsplit(key,".",fixed=TRUE)[[1]][1] } }))
   currkeys <- unlist(currkeys[!sapply(currkeys,is.null)])
