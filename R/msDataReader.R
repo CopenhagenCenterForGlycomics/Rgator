@@ -1,3 +1,23 @@
+
+hexnac.ratios = function(msdata) {
+	all_ratios = attributes(msdata)$hexnac.ratios
+	do.call(rbind,lapply(names(all_ratios),function(specid) {
+		ratios = suppressWarnings(as.numeric(unlist(strsplit(all_ratios[[specid]],',',fixed=T))))
+		data.frame(spectra=specid,ratio=ratios)
+	}))
+}
+
+quant.areas = function(msdata) {
+	all_areas = attributes(msdata)$quant.areas
+	areas_list = unlist(unlist(all_areas,recursive = F),recursive=F)
+	do.call(rbind,lapply(names(areas_list),function(spec_channel) {
+		areas = areas_list[[spec_channel]]
+		areas[areas == 0] = NA
+		id_parts = unlist(strsplit(spec_channel,'.',fixed=T))
+		data.frame(spectra=id_parts[1],channel=id_parts[2],area=areas)
+	}))
+}
+
 chooseMsDataParser <- function(wanted_version) {
 	if (wanted_version == "1") {
 		wanted_version = '1.0'
@@ -34,9 +54,10 @@ spectrum_key <- function(spectrum) {
 }
 
 
-parser_v1 <- function(rows,rKeys) {
-	row <- rows[[1]]
-	as.data.frame(do.call("rbind", lapply(rows,function(row) {
+parser_v1 <- function(rows,rKeys,attribs) {
+	quants = list()
+	hexnac_ratios = list()
+	result = as.data.frame(do.call("rbind", lapply(rows,function(row) {
 		peptide_id <- substring(tempfile(pattern="peptide",tmpdir=''),2)
 		base <- data.frame(	peptide=row$sequence,
 					peptide.key=peptide_id,
@@ -56,6 +77,11 @@ parser_v1 <- function(rows,rKeys) {
 				)
 		if ('spectra' %in% names(row)) {
 			base$spectra <- digest::digest( join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key )),"crc32")
+			if (is.null(quants[[base$spectra]])) {
+				quants[[base$spectra]] <<- list()
+			}
+			quants[[base$spectra]][[length(quants[[base$spectra]])+1]] <<- row$quant_areas
+			hexnac_ratios[[base$spectra]] <<- row$hexnac_ratio
 		}
 		if ('sites' %in% names(row)) {
 			num_sites <- length(row$sites)
@@ -83,4 +109,7 @@ parser_v1 <- function(rows,rKeys) {
 
 		base
 	})));
+	attribs$quant.areas = c(attribs$quant.areas, quants)
+	attribs$hexnac.ratios = c(attribs$hexnac.ratios, hexnac_ratios)
+	result
 }

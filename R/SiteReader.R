@@ -416,8 +416,9 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
     return (data.frame())
   } else if ( (!is.null(data$defaults$rKeys) && length(data$defaults$rKeys) > 0) || ('metadata' %in% names(data)) ) {
     all_prots <- names(data$data)
+    attributes_env = new.env()
     frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
-      frm <- parserFunction(data$data[[uprot]],data$defaults$rKeys )
+      frm <- parserFunction(data$data[[uprot]],data$defaults$rKeys, attributes_env)
       # We should get a data frame out from the jsonParser - attach the uniprot id as
       # another column into the data frame
 
@@ -435,6 +436,11 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       data.table::setnames(frame, c('uniprot', data$defaults$rKeys, rep('NA',dim(frame)[2] - (length(data$defaults$rKeys)+1))))
     }
     frame <- as.data.frame(frame)
+
+    for (attrib in ls(attributes_env)) {
+      attributes(frame)[[attrib]] = attributes_env[[attrib]]
+    }
+
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
@@ -543,8 +549,10 @@ testParseJson <- function(filename,attach=F) {
     progress_type = "none"
   }
 
+  attributes_env = new.env()
+
   frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
-    frm <- parserFunction(origData$data[[uprot]],origData$defaults$rKeys )
+    frm <- parserFunction(origData$data[[uprot]],origData$defaults$rKeys, attributes_env )
 
     # We should get a data frame out from the jsonParser - attach the uniprot id as
     # another column into the data frame
@@ -566,6 +574,10 @@ testParseJson <- function(filename,attach=F) {
     names(frame) <- c('uniprot',origData$defaults$rNames)
   }
   frame <- as.data.frame(frame)
+
+  for (attrib in ls(attributes_env)) {
+    attributes(frame)[[attrib]] = attributes_env[[attrib]]
+  }
 
   if (attach) {
     data.env = getDataEnvironment()
