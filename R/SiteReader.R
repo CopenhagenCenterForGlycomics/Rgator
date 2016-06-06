@@ -296,6 +296,12 @@ restoreEnvironment <- function() {
 # @importFrom data.table setnames
 downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   message("Downloading ",set)
+
+  progress_type = "text"
+  if ( !interactive() || !is.null(getOption('knitr.in.progress')) ) {
+    progress_type = "none"
+  }
+
   if (length(grep("gatorURL",config[['type']])) > 0) {
     # This is only the key for the hash in the prefs file
     # We need to be storing the type with the key
@@ -396,7 +402,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
       if (head(nchar(data$data[[uprot]]),1) > 0) {
         decodeBase64(data$data[[uprot]])
       }
-    },.progress="text")
+    },.progress=progress_type)
     attributes(frame)$etag <- data$etag
     class(frame) <- 'data.frame'
 
@@ -420,8 +426,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
         return (NULL)
       }
       return(frm)
-    },.progress="text"))
-
+    },.progress=progress_type))
     # We need to re-arrange the columns here so that the uniprot column
     # ends up as the first column for consistency
     wanted_cols <- names(frame)
@@ -433,7 +438,7 @@ downloadDataset <- function(set,config,accs=c(),etagcheck=TRUE) {
   } else {
     # Assume that we're just pulling out sites from the data sets if we're not given a particular
     # key to iterate over
-    frame <- plyr::ldply(data$data,.fun=function(dat) { return (plyr::ldply(dat$sites)) },.progress="text")
+    frame <- plyr::ldply(data$data,.fun=function(dat) { return (plyr::ldply(dat$sites)) },.progress=progress_type)
     currnames <- names(frame)
     currnames[1] <- 'uniprot'
     names(frame)<- currnames
@@ -487,6 +492,11 @@ decodeBase64 <- function(base64) {
 # @importFrom plyr llply
 testParseBJson <- function(filename) {
   etag <- NULL
+  progress_type = "text"
+  if ( !interactive() || !is.null(getOption('knitr.in.progress')) ) {
+    progress_type = "none"
+  }
+
   if (file.exists(filename)) {
     fileConn <- file(filename,"r")
     message("Loading cached file")
@@ -504,7 +514,7 @@ testParseBJson <- function(filename) {
         decodeBase64(origData$data[[uprot]])
       }
     }
-  },.progress="text")
+  },.progress=progress_type)
 
   return (frame)
 }
@@ -528,6 +538,10 @@ testParseJson <- function(filename,attach=F) {
   if ( 'metadata' %in% names(origData) && 'msdata-version' %in% names(origData$metadata[[1]]) ) {
     parserFunction = chooseMsDataParser(origData$metadata[[1]][['msdata-version']])
   }
+  progress_type = "text"
+  if ( !interactive() || !is.null(getOption('knitr.in.progress')) ) {
+    progress_type = "none"
+  }
 
   frame <- data.table::rbindlist(plyr::llply(all_prots,.fun=function(uprot) {
     frm <- parserFunction(origData$data[[uprot]],origData$defaults$rKeys )
@@ -537,7 +551,7 @@ testParseJson <- function(filename,attach=F) {
 
     frm$uniprot <- rep(uprot,dim(frm)[1])
     return(frm)
-  },.progress="text"))
+  },.progress=progress_type))
 
   # We need to re-arrange the columns here so that the uniprot column
   # ends up as the first column for consistency
