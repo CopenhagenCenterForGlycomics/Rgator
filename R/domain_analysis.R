@@ -225,7 +225,7 @@ remove_tm_overlaps = function(domains) {
   plyr::ddply(domains,c('uniprot'),function(doms) {
     tmranges = IRanges::IRanges(as.numeric(doms[grepl("TMhelix",doms$dom),]$start), as.numeric(doms[grepl("TMhelix",doms$dom),]$end))
     allranges =  IRanges::IRanges(as.numeric(doms$start), as.numeric(doms$end))
-    doms[(! allranges %over% tmranges) | (grepl("TMhelix",doms$dom)),]
+    doms[(! get('%over%',loadNamespace('IRanges'))(allranges,tmranges)) | (grepl("TMhelix",doms$dom)),]
   })
 }
 
