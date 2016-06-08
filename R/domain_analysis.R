@@ -223,11 +223,38 @@ downloadProcessing <- function(...) {
 
 remove_tm_overlaps = function(domains) {
   plyr::ddply(domains,c('uniprot'),function(doms) {
-    tmranges = IRanges::IRanges(as.numeric(doms[grepl("TMhelix",doms$dom),]$start), as.numeric(doms[grepl("TMhelix",doms$dom),]$end))
-    allranges =  IRanges::IRanges(as.numeric(doms$start), as.numeric(doms$end))
-    doms[(! get('%over%',loadNamespace('IRanges'))(allranges,tmranges)) | (grepl("TMhelix",doms$dom)),]
+    tmdoms = doms[grepl("TMhelix",doms$dom),]
+    otherdoms = doms[! grepl("TMhelix",doms$dom),]
+    tmranges = IRanges::IRanges(as.numeric(tmdoms$start), as.numeric(tmdoms$end))
+    allranges =  IRanges::IRanges(as.numeric(otherdoms$start), as.numeric(otherdoms$end))
+    rbind( tmdoms, otherdoms[! IRanges::overlapsAny(allranges,tmranges,type="within"),] )
   })
 }
+
+filter_typeii = function(input) {
+  stem_distance = 50
+  df <- input
+  df$start <- as.numeric(df$start)
+  df$siteend <- as.numeric(df$site) - as.numeric(df$end)
+  df$startsite <- as.numeric(df$start) - as.numeric(df$site)
+
+  # All the N-terminal domains, our site is C-terminal of the domain
+  filtered <- subset(df,siteend>0)
+  filtered <- filtered[order(filtered$siteend),]
+  # We have a SIGNALP or TMHELIX -- something...
+  # This is a type II transmembrane
+
+  if (( (filtered$dom[1] == "SIGNALP") | grepl("TMhelix",filtered$dom[1]) )) {
+    # Grab all the C-terminal domains within the stem distance of the site
+    # Grab all the N-terminal domains within the stem distance of the site, and closer than the closest SIGNALP or TM (i.e the closest SIGNALP or TM)
+    wanted <- subset(df, (grepl("TMhelix",dom) | (startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
+    wanted$siteend <- NULL
+    wanted$startsite <- NULL
+    return (wanted)
+  }
+  return ()
+}
+
 
 #' Divide up sets of sites based on their site context
 #'
@@ -308,7 +335,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
   message("Retrieved sequences")
   if (remove_tm_overlaps) {
     message("Removing domain overlaps")
-    domaindata = remove_tm_overlaps(domaindata)
+    domaindata = remove_tm_overlaps(domaindata[domaindata$uniprot %in% inputsites$uniprot,])
   }
   domdat <- merge(merge(domaindata,subset(inputsites,! is.na(inputsites[[sitecol]])),by='uniprot',allow.cartesian=TRUE),seqdat,by='uniprot',allow.cartesian=TRUE)
   domdat$aalength <- nchar(domdat$sequence)
@@ -342,26 +369,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     return ()
   },.progress="text")$uniprot)
   message("Identifying type II stems")
-  stem_typeii <- plyr::ddply(between,plyr::.(sitekey),function(input) {
-    df <- input
-    df$start <- as.numeric(df$start)
-    df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
-    df$startsite <- as.numeric(df$start) - as.numeric(df[[sitecol]])
-
-    # All the N-terminal domains, our site is C-terminal of the domain
-    filtered <- subset(df,siteend>0)
-    filtered <- filtered[order(filtered$siteend),]
-    # We have a SIGNALP or TMHELIX -- something...
-    # This is a type II transmembrane
-    if (( (filtered$dom[1] == "SIGNALP") | grepl("TMhelix",filtered$dom[1]) ) & (filtered$uniprot[1] %in% typeii )) {
-      # Grab all the C-terminal domains within the stem distance of the site
-      # Grab all the N-terminal domains within the stem distance of the site, and closer than the closest SIGNALP or TM (i.e the closest SIGNALP or TM)
-      wanted <- subset(df, ((startsite > 0 & startsite <= stem_distance) | (siteend > 0 & siteend <= stem_distance & siteend <= filtered$siteend[1] )))
-      wanted$siteend <- NULL
-      wanted$startsite <- NULL
-      return (wanted)
-    }
-  },.progress="text")
+  stem_typeii <- plyr::ddply(between[between$uniprot %in% typeii,],plyr::.(sitekey),filter_typeii,.progress="text")
   message("Identifying Signalp stems")
   signalp_stem <- plyr::ddply(between,plyr::.(sitekey),function(input) {
     df <- input
@@ -396,10 +404,8 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     filtered <- filtered[order(filtered$startsite),]
     # We have a something -- TMHELIX
     # If we have a domain spanning the transmembrane, we want to call this a type I transmembrane too
-
     # FIXME - we should really be removing the domains that are overlapping with any TMs because they
     # screw up the detection of the loops in the multipass section
-
     if ( ((dim(filtered)[1] >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((dim(filtered)[1] >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$end[1]) > as.numeric(filtered$end[2]) ) )) {
       min_siteend = min(df[df$siteend > 0,]$siteend)
       closest_doms = df[df$siteend == min_siteend,'dom']
@@ -414,6 +420,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     }
     return ()
   },.progress="text")
+  stem_nterm = plyr::ddply(between[! between$uniprot %in% typeii & ! between$sitekey %in% stem_typei$sitekey,],plyr::.(sitekey),filter_typeii,.progress="text")
   message("Identifying multipass proteins")
   multipass_loop = unique(plyr::ddply(stem_typei,'sitekey',function(doms) {
     if (length(unique(doms$start[grepl("TMhelix",doms$dom)])) > 1) {
@@ -423,15 +430,26 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
       # All the N-terminal domains, our site is C-terminal of the domain
       filtered <- subset(doms,siteend>0)
       filtered <- filtered[order(filtered$siteend),]
-        if ( ((dim(filtered)[1] >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((dim(filtered)[1] >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$start[1]) < as.numeric(filtered$start[2]) ) )) {
-          return (doms[grepl("TMhelix",doms$dom),c('uniprot','dom','start','end','site','aalength','sitekey')])
-        }
+      # We only want a transmembrane
+      if ( ((nrow(filtered) >= 1) & grepl( "TMhelix" ,filtered$dom[1] )) | ((nrow(filtered) >= 2) & grepl("TMhelix",filtered$dom[2]) & (as.numeric(filtered$start[1]) < as.numeric(filtered$start[2]) ) )) {
+        return (doms[grepl("TMhelix",doms$dom),c('uniprot','dom','start','end','site','aalength','sitekey')])
+      }
     }
     return()
   }))
   stem_typei = stem_typei[ ! stem_typei$sitekey %in% multipass_loop$sitekey,]
-
-  interdomain <- subset(between, ! sitekey %in% stem_typei$sitekey & ! sitekey %in% stem_typeii$sitekey & ! sitekey %in% signalp_stem$sitekey & ! sitekey %in% multipass_loop$sitekey )
+  stem_cterm = plyr::ddply(stem_typei,'sitekey',function(doms) {
+    if (length(unique(doms[grepl("TMhelix",doms$dom),]$start)) > 1) {
+      return (doms)
+    }
+    return()
+  })
+  interdomain <- subset(between, ! sitekey %in% c(stem_typei$sitekey ,
+                                                  stem_typeii$sitekey,
+                                                  signalp_stem$sitekey,
+                                                  multipass_loop$sitekey,
+                                                  stem_nterm$sitekey,
+                                                  stem_cterm$sitekey))
   norc <- subset(outside, ! sitekey %in% between$sitekey )
   norc_multipass <- plyr::ddply(norc,'sitekey',function(doms) {
     if ( nrow(unique(doms[grepl("TMhelix",doms$dom),])) > 1 ) {
@@ -453,5 +471,5 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
   #ddply between by sitekey if (site - end), sort asc [1] $dom == tmhmmm/signalp return df
   #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
   #                         else return empty
-  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, multipass.loop=multipass_loop, multipass.tail=norc_multipass, stem=rbind(stem_typei,stem_typeii,signalp_stem), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc, norc_membrane=norc_membrane, norc_soluble=norc_soluble, cterm_soluble=cterm, nterm_soluble=nterm  )  )
+  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, multipass.loop=multipass_loop, multipass.tail=norc_multipass, stem=rbind(stem_typei,stem_typeii,signalp_stem,stem_nterm,stem_cterm), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.nterm=stem_nterm, stem.cterm=stem_cterm, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc, norc_membrane=norc_membrane, norc_soluble=norc_soluble, cterm_soluble=cterm, nterm_soluble=nterm  )  )
 }
