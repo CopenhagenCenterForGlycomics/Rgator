@@ -342,6 +342,12 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
   domdat$sitekey <- paste(domdat$uniprot,'-',domdat[[sitecol]],sep='')
   domdat$sequence <- NULL
   real <- subset( domdat, ((as.numeric(end) - as.numeric(start)) / aalength < max_dom_proportion ))
+  nodomains.ids = names(which(unlist(lapply( split(real$dom,real$uniprot),
+                             function(doms) { ! any(!(grepl("TMhelix|SIGNALP",doms))) }
+                           )
+                    )))
+  nodomains = real[real$uniprot %in% nodomains.ids,]
+  real = real[! real$uniprot %in% nodomains.ids,]
   inside <- subset( subset (  real ,  ( (as.numeric(real[[sitecol]]) >= as.numeric(start)) & (as.numeric(real[[sitecol]]) <= as.numeric(end))  )  ), ! grepl("tmhmm",dom) & ! grepl("TMHelix", dom) )
   outside <- subset ( real , ! sitekey %in% inside$sitekey & dom != 'tmhmm-outside' & dom != 'tmhmm-inside' )
   sitekeys_nterm <- unique(subset( outside, as.numeric(outside[[sitecol]]) < as.numeric(start) )$sitekey)
@@ -471,5 +477,5 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
   #ddply between by sitekey if (site - end), sort asc [1] $dom == tmhmmm/signalp return df
   #                         if (start - site), sort asc [1] $dom == tmhmm/signalp return df
   #                         else return empty
-  return ( list( all=domdat, real=real, inside=inside, outside=outside, between=between, multipass.loop=multipass_loop, multipass.tail=norc_multipass, stem=rbind(stem_typei,stem_typeii,signalp_stem,stem_nterm,stem_cterm), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.nterm=stem_nterm, stem.cterm=stem_cterm, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc, norc_membrane=norc_membrane, norc_soluble=norc_soluble, cterm_soluble=cterm, nterm_soluble=nterm  )  )
+  return ( list( all=domdat, real=real, nodomains=nodomains, inside=inside, outside=outside, between=between, multipass.loop=multipass_loop, multipass.tail=norc_multipass, stem=rbind(stem_typei,stem_typeii,signalp_stem,stem_nterm,stem_cterm), stem.typeii=stem_typeii, stem.typei=stem_typei, stem.nterm=stem_nterm, stem.cterm=stem_cterm, stem.signalp=signalp_stem, interdomain=interdomain, norc=norc, norc_membrane=norc_membrane, norc_soluble=norc_soluble, cterm_soluble=cterm, nterm_soluble=nterm  )  )
 }
