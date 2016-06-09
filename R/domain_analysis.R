@@ -234,11 +234,10 @@ remove_tm_overlaps = function(domains) {
   })
 }
 
-filter_typeii = function(input) {
-  stem_distance = 50
+filter_typeii = function(input,sitecol='site',stem_distance=50) {
   df <- input
   df$start <- as.numeric(df$start)
-  df$siteend <- as.numeric(df$site) - as.numeric(df$end)
+  df$siteend <- as.numeric(df[[sitecol]]) - as.numeric(df$end)
   df$startsite <- as.numeric(df$start) - as.numeric(df$site)
 
   # All the N-terminal domains, our site is C-terminal of the domain
@@ -258,6 +257,7 @@ filter_typeii = function(input) {
   return ()
 }
 
+partial = pryr::partial
 
 #' Divide up sets of sites based on their site context
 #'
@@ -378,7 +378,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     return ()
   },.progress="text")$uniprot)
   message("Identifying type II stems")
-  stem_typeii <- plyr::ddply(between[between$uniprot %in% typeii,],plyr::.(sitekey),filter_typeii,.progress="text")
+  stem_typeii <- plyr::ddply(between[between$uniprot %in% typeii,],plyr::.(sitekey),partial(filter_typeii,sitecol=sitecol,stem_distance=stem_distance),.progress="text")
   message("Identifying Signalp stems")
   signalp_stem <- plyr::ddply(between,plyr::.(sitekey),function(input) {
     df <- input
@@ -429,7 +429,7 @@ calculateDomainSets <- function( inputsites, sitecol, domaindata, max_dom_propor
     }
     return ()
   },.progress="text")
-  stem_nterm = plyr::ddply(between[! between$uniprot %in% typeii & ! between$sitekey %in% stem_typei$sitekey,],plyr::.(sitekey),filter_typeii,.progress="text")
+  stem_nterm = plyr::ddply(between[! between$uniprot %in% typeii & ! between$sitekey %in% stem_typei$sitekey,],plyr::.(sitekey),partial(filter_typeii,sitecol=sitecol,stem_distance=stem_distance),.progress="text")
   message("Identifying multipass proteins")
   multipass_loop = unique(plyr::ddply(stem_typei,'sitekey',function(doms) {
     if (length(unique(doms$start[grepl("TMhelix",doms$dom)])) > 1) {
