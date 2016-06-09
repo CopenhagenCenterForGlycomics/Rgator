@@ -226,8 +226,11 @@ remove_tm_overlaps = function(domains) {
     tmdoms = doms[grepl("TMhelix",doms$dom),]
     otherdoms = doms[! grepl("TMhelix",doms$dom),]
     tmranges = IRanges::IRanges(as.numeric(tmdoms$start), as.numeric(tmdoms$end))
-    allranges =  IRanges::IRanges(as.numeric(otherdoms$start), as.numeric(otherdoms$end))
-    rbind( tmdoms, otherdoms[! IRanges::overlapsAny(allranges,tmranges,type="within"),] )
+    if (nrow(otherdoms) < 1) {
+      return (tmdoms)
+    }
+    allranges =  IRanges::IRanges(as.numeric(otherdoms$start), as.numeric(otherdoms$end),name=1:nrow(otherdoms))
+    rbind( tmdoms, otherdoms[! rownames(otherdoms) %in% IRanges::mergeByOverlaps(tmranges,allranges,type="within")[,2]@NAMES,] )
   })
 }
 
