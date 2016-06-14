@@ -1,22 +1,37 @@
 
 hexnac.ratios = function(msdata) {
 	all_ratios = attributes(msdata)$hexnac.ratios
-	do.call(rbind,lapply(names(all_ratios),function(specid) {
+	results = do.call(rbind,lapply(names(all_ratios),function(specid) {
 		ratios = suppressWarnings(as.numeric(unlist(strsplit(all_ratios[[specid]],',',fixed=T))))
 		data.frame(spectra=specid,ratio=ratios)
 	}))
+	results[results$spectra %in% msdata$spectra,]
 }
 
 quant.areas = function(msdata) {
 	all_areas = attributes(msdata)$quant.areas
 	areas_list = unlist(unlist(all_areas,recursive = F),recursive=F)
-	do.call(rbind,lapply(names(areas_list),function(spec_channel) {
+	results = do.call(rbind,lapply(names(areas_list),function(spec_channel) {
 		areas = areas_list[[spec_channel]]
 		areas[areas == 0] = NA
 		id_parts = unlist(strsplit(spec_channel,'.',fixed=T))
-		data.frame(spectra=id_parts[1],channel=id_parts[2],area=areas)
+		data.frame(spectra=id_parts[1],channel=id_parts[2],area=sum(areas))
 	}))
+	results[results$spectra %in% msdata$spectra,]
 }
+
+peptide.identifiers = function(msdata) {
+	ids = with(msdata,
+		lapply(split(
+			ifelse(is.na(site),composition,paste(site,site.composition,sep='-')),
+			as.factor(spectra)
+			),
+			function(items) { paste(sort(unique(items)),collapse=';')  }
+		)
+	)
+	data.frame(spectra=msdata$spectra,identifier=paste(msdata$peptide,ids[msdata$spectra]))
+}
+
 
 chooseMsDataParser <- function(wanted_version) {
 	if (wanted_version == "1") {
