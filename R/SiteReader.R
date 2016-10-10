@@ -541,6 +541,10 @@ testParseJson <- function(filename,attach=F) {
   all_prots <- names(origData$data)
   parserFunction = jsonParser
 
+  if ( 'metadata' %in% names(origData) && 'msdata-version' %in% names(origData$metadata) ) {
+    parserFunction = chooseMsDataParser(origData$metadata[['msdata-version']])
+  }
+
   if ( 'metadata' %in% names(origData) && 'msdata-version' %in% names(origData$metadata[[1]]) ) {
     parserFunction = chooseMsDataParser(origData$metadata[[1]][['msdata-version']])
   }
@@ -625,7 +629,7 @@ renderDescription <- function(fields) {
 
 cacheUniprotFile <- function(url,fileId,gzip=F,header=F,...) {
   response = httr::GET(url)
-  table <- httr::content(response,type='text/tab-separated-values')
+  table <- httr::content(response,type='text/tab-separated-values',col_names=T,col_types=NULL)
   attributes(table)$version <- httr::headers(response)[['x-uniprot-release']]
   return (table)
 }

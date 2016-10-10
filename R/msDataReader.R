@@ -38,7 +38,7 @@ chooseMsDataParser <- function(wanted_version) {
 		wanted_version = '1.0'
 	}
 	version_info = package_version(wanted_version)
-	if (version_info <= '1.1.999') {
+	if (version_info <= '1.2.999') {
 		return(parser_v1);
 	}
 }
