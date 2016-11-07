@@ -174,7 +174,7 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 			num_sites <- length(row$ambiguous_sites)
 			base_ambig <- base_template[rep(seq_len(nrow(base_template)), num_sites), ]
 			base_ambig$ambiguous.site.start <- sapply(row$ambiguous_sites,function(site) { site[[1]][1] })
-			base_ambig$ambiguous.site.end <- sapply(row$ambiguous_sites,function(site) { site[[1]][1] })
+			base_ambig$ambiguous.site.end <- sapply(row$ambiguous_sites,function(site) { site[[1]][2] })
 			base_ambig$ambiguous.site.composition <- sapply(row$ambiguous_sites,function(site) { site[[2]] })
 			if (is.null(base) || nrow(base) > 0) {
 				base = rbind(base,base_ambig)
