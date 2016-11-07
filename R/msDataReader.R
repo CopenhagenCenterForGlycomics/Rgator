@@ -182,7 +182,9 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 				base = base_ambig
 			}
 		}
-
+		if (is.null(base)) {
+			base = base_template
+		}
 		if ('made_ambiguous' %in% names(row)) {
 			base$site_ambiguity = row[['made_ambiguous']]
 		}
