@@ -20,10 +20,15 @@ quant.areas = function(msdata) {
 	results[results$spectra %in% msdata$spectra,]
 }
 
+write_identifiers = function(site,site.composition,amb.start,amb.end,amb.composition,composition) {
+	ambiguous_ids = ifelse(is.na(amb.start),composition,paste(paste(amb.start,amb.end,sep=':'),amb.composition,sep='-'))
+	ifelse(is.na(site), ambiguous_ids ,paste(site,site.composition,sep='-'))
+}
+
 peptide.identifiers = function(msdata) {
 	ids = with(msdata,
 		lapply(split(
-			ifelse(is.na(site),composition,paste(site,site.composition,sep='-')),
+			write_identifiers(site,site.composition,ambiguous.site.start,ambiguous.site.end,ambiguous.site.composition,composition),
 			as.factor(spectra)
 			),
 			function(items) { paste(sort(unique(items)),collapse=';')  }
