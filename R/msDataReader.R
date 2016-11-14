@@ -26,6 +26,11 @@ write_identifiers = function(site,site.composition,amb.start,amb.end,amb.composi
 }
 
 peptide.identifiers = function(msdata) {
+	if (! 'ambiguous.site.start' %in% names(msdata)) {
+		msdata$ambiguous.site.start = NA
+		msdata$ambiguous.site.end = NA
+		msdata$ambiguous.site.composition = NA
+	}
 	ids = with(msdata,
 		lapply(split(
 			write_identifiers(site,site.composition,ambiguous.site.start,ambiguous.site.end,ambiguous.site.composition,composition),
