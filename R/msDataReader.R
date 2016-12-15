@@ -87,10 +87,11 @@ parser_v1 <- function(rows,rKeys,attribs) {
 	hexnac_ratios = list()
 	result = as.data.frame(do.call("rbind", lapply(rows,function(row) {
 		peptide_id <- substring(tempfile(pattern="peptide",tmpdir=''),2)
-		base <- data.frame(	peptide=row$sequence,
+		base <- data.frame(
 					peptide.key=peptide_id,
-					peptide.start=row$peptide_start,
-					peptide.end=row$peptide_start + nchar(row$sequence),
+					peptide=NA,
+					peptide.start=NA,
+					peptide.end=NA,
 					site=NA,
 					site.composition=NA,
 					ambiguous=NA,
@@ -100,9 +101,14 @@ parser_v1 <- function(rows,rKeys,attribs) {
 					quant_confidence='high',
 					composition=join_composition(row$composition),
 					site_ambiguity=NA,
-					source=row$source,
+					source=ifelse(is.null(row$source), '',row$source),
 					spectra=NA
 				)
+		if ('peptide_start' %in% names(row) && 'sequence' %in% names(row)) {
+			base$peptide.start = row$peptide_start
+			base$peptide.end = row$peptide_start + nchar(row$sequence)
+			base$peptide = row$sequence
+		}
 		if ('spectra' %in% names(row)) {
 			base$spectra <- digest::digest( join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key )),"crc32")
 			if (is.null(quants[[base$spectra]])) {
@@ -126,7 +132,7 @@ parser_v1 <- function(rows,rKeys,attribs) {
 			base$site_ambiguity = row[['made_ambiguous']]
 		}
 		if ('quant' %in% names(row)) {
-			base$quantification <- row$quant$quant
+			base$quantification <- ifelse(is.null(row$quant),NA,row$quant$quant)
 			if ('mad' %in% names(row$quant)) {
 				base$quantification_mad <- row$quant$mad
 			}
@@ -148,10 +154,11 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 	result = as.data.frame(do.call("rbind", lapply(rows,function(row) {
 		peptide_id <- substring(tempfile(pattern="peptide",tmpdir=''),2)
 		base = NULL
-		base_template <- data.frame(	peptide=row$sequence,
+		base_template <- data.frame(
 					peptide.key=peptide_id,
-					peptide.start=row$peptide_start,
-					peptide.end=row$peptide_start + nchar(row$sequence),
+					peptide=NA,
+					peptide.start=NA,
+					peptide.end=NA,
 					site=NA,
 					site.composition=NA,
 					ambiguous.site.start=NA,
@@ -163,9 +170,14 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 					quant_confidence='high',
 					composition=join_composition(row$composition),
 					site_ambiguity=NA,
-					source=row$source,
+					source=ifelse(is.null(row$source), '',row$source),
 					spectra=NA
 				)
+		if ('peptide_start' %in% names(row) && 'sequence' %in% names(row)) {
+			base_template$peptide.start = row$peptide_start
+			base_template$peptide.end = row$peptide_start + nchar(row$sequence)
+			base_template$peptide = row$sequence
+		}
 		if ('spectra' %in% names(row)) {
 			base_template$spectra <- digest::digest( join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key )),"crc32")
 			if (is.null(quants[[base_template$spectra]])) {
@@ -199,7 +211,7 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 			base$site_ambiguity = row[['made_ambiguous']]
 		}
 		if ('quant' %in% names(row)) {
-			base$quantification <- row$quant$quant
+			base$quantification <- ifelse(is.null(row$quant),NA,row$quant$quant)
 			if ('mad' %in% names(row$quant)) {
 				base$quantification_mad <- row$quant$mad
 			}
