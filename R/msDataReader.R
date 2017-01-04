@@ -20,6 +20,23 @@ quant.areas = function(msdata) {
 	results[results$spectra %in% msdata$spectra,]
 }
 
+spectra.details = function(msdata) {
+	all_details = attributes(msdata)$spectra.details
+	specdetails = do.call(rbind,lapply(names(all_details),function(spec) {
+		spec_string = all_details[[spec]]
+		specs = as.data.frame(do.call(rbind,lapply(strsplit(unlist(strsplit(spec_string,":")),"|",fixed=T),function(x) {
+			setNames(x,c('rt','scan','charge','ppm','score') )
+		})))
+		specs$spectra = spec
+		specs
+	}))
+	specdetails$rt = as.numeric(specdetails$rt)
+	specdetails$charge = as.numeric(specdetails$charge)
+	specdetails$ppm = as.numeric(specdetails$ppm)
+	specdetails$score = as.numeric(specdetails$score)
+	specdetails
+}
+
 write_identifiers = function(site,site.composition,amb.start,amb.end,amb.composition,composition) {
 	ambiguous_ids = ifelse(is.na(amb.start),composition,paste(paste(amb.start,amb.end,sep=':'),amb.composition,sep='-'))
 	ifelse(is.na(site), ambiguous_ids ,paste(site,site.composition,sep='-'))
@@ -74,6 +91,10 @@ join_composition <- function(composition) {
 	paste(composition,collapse=';')
 }
 
+join_spectra <- function(spectra) {
+	paste(spectra,collapse=':')
+}
+
 spectrum_key <- function(spectrum) {
 	if (is.null(spectrum$ppm)) {
 		spectrum$ppm = Inf
@@ -110,7 +131,8 @@ parser_v1 <- function(rows,rKeys,attribs) {
 			base$peptide = row$sequence
 		}
 		if ('spectra' %in% names(row)) {
-			base$spectra <- digest::digest( join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key )),"crc32")
+			spectra_keys = join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key ))
+			base$spectra <- digest::digest( spectra_keys ,"crc32")
 			if (is.null(quants[[base$spectra]])) {
 				quants[[base$spectra]] <<- list()
 			}
@@ -151,6 +173,7 @@ parser_v1 <- function(rows,rKeys,attribs) {
 parser_v1_3 <- function(rows,rKeys,attribs) {
 	quants = list()
 	hexnac_ratios = list()
+	spectra_details = list()
 	result = as.data.frame(do.call("rbind", lapply(rows,function(row) {
 		peptide_id <- substring(tempfile(pattern="peptide",tmpdir=''),2)
 		base = NULL
@@ -179,12 +202,14 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 			base_template$peptide = row$sequence
 		}
 		if ('spectra' %in% names(row)) {
-			base_template$spectra <- digest::digest( join_composition(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key )),"crc32")
+			spectra_keys = join_spectra(sapply( row$spectra[ order(sapply(row$spectra,function(x) { x$rt })) ], spectrum_key ))
+			base_template$spectra <- digest::digest( spectra_keys ,"crc32")
 			if (is.null(quants[[base_template$spectra]])) {
 				quants[[base_template$spectra]] <<- list()
 			}
 			quants[[base_template$spectra]][[length(quants[[base_template$spectra]])+1]] <<- row$quant_areas
 			hexnac_ratios[[base_template$spectra]] <<- row$hexnac_ratio
+			spectra_details[[base_template$spectra]] <<- spectra_keys
 		}
 		if ('sites' %in% names(row) && length(row$sites) > 0) {
 			num_sites <- length(row$sites)
@@ -224,5 +249,6 @@ parser_v1_3 <- function(rows,rKeys,attribs) {
 	})));
 	attribs$quant.areas = c(attribs$quant.areas, quants)
 	attribs$hexnac.ratios = c(attribs$hexnac.ratios, hexnac_ratios)
+	attribs$spectra.details = c(attribs$spectra.details, spectra_details)
 	result
 }
