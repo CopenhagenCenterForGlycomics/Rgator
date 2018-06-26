@@ -14,7 +14,7 @@ getUniprotIds <- function(taxonomy) {
     return ( get(paste("gator.UniProtData.accs.",taxonomy,sep="")) )
   }
   message("Getting ID list")
-  id_request <- httr::GET("http://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
+  id_request <- httr::GET("https://www.uniprot.org/uniprot/",query=paste("query=taxonomy:",taxonomy,"+AND+reviewed:yes+AND+keyword:1185&force=yes&format=list",sep=""))
   id_text <- httr::content(id_request,as='text')
   idlist <- unlist(strsplit(id_text,"\n"))
   data.env = getDataEnvironment()
@@ -68,7 +68,7 @@ getUniprotSequences <- function(accessions,wait=0) {
   writeLines(toupper(paste(unlist(wanted_accs),collapse="\n")), toupload)
   acc_file <- httr::upload_file(toupload)
 
-  fastas <- httr::POST("http://www.uniprot.org/batch/",body=list(format='fasta',file=acc_file),encode="multipart")
+  fastas <- httr::POST("https://www.uniprot.org/batch/",body=list(format='fasta',file=acc_file),encode="multipart")
 
   unlink(toupload)
 
