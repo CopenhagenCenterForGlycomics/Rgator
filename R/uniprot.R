@@ -44,7 +44,7 @@ getUniprotSequences <- function(accessions,wait=0) {
     data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
   }
   if (length(wanted_accs) < 1) {
-    return (unique(subset(gator.UniProtData, uniprot %in% accessions )))
+    return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
   }
   if (length(wanted_accs) > 200) {
     accgroups <- split(wanted_accs, ceiling(seq_along(wanted_accs)/200))
@@ -68,7 +68,7 @@ getUniprotSequences <- function(accessions,wait=0) {
   writeLines(toupper(paste(unlist(wanted_accs),collapse="\n")), toupload)
   acc_file <- httr::upload_file(toupload)
 
-  fastas <- httr::POST("https://www.uniprot.org/batch/",body=list(format='fasta',file=acc_file),encode="multipart")
+  fastas <- httr::POST("https://www.uniprot.org/uploadlists/",body=list(format='fasta',file=acc_file,from='ACC+ID',to='ACC'),encode="multipart")
 
   unlink(toupload)
 
