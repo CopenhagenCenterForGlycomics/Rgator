@@ -29,9 +29,9 @@ PWMFunction <- ggplot2::ggproto("PWMFunction", ggplot2::Stat,
                             pwm[pwm==0]<-NA
                             missing_names = apply(pwm,2,function(col) { names(col[is.na(col)]) } )
                             missing_names[[ floor(length(missing_names)/2) + 1 ]] <- c(NA)
-                            print("Missing amino acid statistics")
-                            print(table(unlist(missing_names)))
-                            print(missing_names)
+                            message("Missing amino acid statistics")
+                            message(paste0(capture.output(table(unlist(missing_names))), collapse = "\n"))
+                            message(paste0(capture.output(missing_names), collapse = "\n"))
                           } else {
                             pwm[pwm==0]<- 0.001
                           }
