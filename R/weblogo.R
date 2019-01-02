@@ -71,7 +71,7 @@ frequenciesFromWindows <- function(windows,positional=FALSE,codes=c('A','C', 'D'
 
 calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H','I','J','K','L','M','N','P','Q','R','S','T','V','W','Y','Z')) {
   aas <- t(data.matrix(apply(as.array(dataframe[[windowcol]]),1,FUN=function(x) { unlist(strsplit(x,''))})))
-  freqs <- apply(aas,2,function(x) { table(x) })
+  freqs <- lapply(1:ncol(aas),function(aa) { table(aas[,aa]) })
   sapply(1:dim(aas)[2],function(pos) {
     pos_freqs <- freqs[[pos]];
     total <- sum(pos_freqs)
