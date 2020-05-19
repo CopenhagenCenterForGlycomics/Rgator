@@ -7,6 +7,7 @@ Author: Hiren Joshi
 Maintainer: Hiren Joshi <Rgator@glycocode.com>
 Description: Connector Package to the GlycoDomainViewer
 NeedsCompilation: no
+StagedInstall: no
 Imports:
     httr,
     plyr,
