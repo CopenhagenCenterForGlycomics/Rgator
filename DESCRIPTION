@@ -1,7 +1,7 @@
 Package: Rgator
 Type: Package
 Title: GlycoDomainViewer analysis toolbox
-Version: 1.2.3
+Version: 1.2.4
 Date: 2020-05-19
 Author: Hiren Joshi
 Maintainer: Hiren Joshi <Rgator@glycocode.com>
