@@ -46,8 +46,8 @@ getUniprotSequences <- function(accessions,wait=0) {
   if (length(wanted_accs) < 1) {
     return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
   }
-  if (length(wanted_accs) > 200) {
-    accgroups <- split(wanted_accs, ceiling(seq_along(wanted_accs)/200))
+  if (length(wanted_accs) > 100) {
+    accgroups <- split(wanted_accs, ceiling(seq_along(wanted_accs)/100))
     accumulated_frame <- NULL
     pb <- txtProgressBar(min=0, max=length(accgroups),initial=0)
     for (i in seq_along(accgroups)) {
@@ -64,13 +64,11 @@ getUniprotSequences <- function(accessions,wait=0) {
   }
 
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
-  toupload <- tempfile()
-  writeLines(toupper(paste(unlist(wanted_accs),collapse="\n")), toupload)
-  acc_file <- httr::upload_file(toupload)
 
-  fastas <- httr::POST("https://www.uniprot.org/uploadlists/",body=list(format='fasta',file=acc_file,from='ACC+ID',to='ACC'),encode="multipart")
+  accession <- toupper(paste(unlist(wanted_accs),collapse=","))
 
-  unlink(toupload)
+  fastas <- httr::GET("https://www.ebi.ac.uk/proteins/api/proteins",query=list(accession=accession), httr::add_headers(Accept = "text/x-fasta"))
+
 
   if (fastas$status_code != 200) {
     message("Could not retrieve ids ",fastas$status_code)
