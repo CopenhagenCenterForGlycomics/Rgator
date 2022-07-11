@@ -15,7 +15,7 @@ getUniprotIds <- function(taxonomy) {
   }
   message("Getting ID list")
   id_request <- httr::GET("https://rest.uniprot.org/uniprotkb/stream",query=list(format="list",query=paste("model_organism:",taxonomy," AND reviewed:true AND keyword:KW-1185",sep="")))
-  stop_for_status(id_request,'download Uniprot ids from rest.uniprot.org')
+  httr::stop_for_status(id_request,'download Uniprot ids from rest.uniprot.org')
   id_text <- httr::content(id_request,as='text')
   idlist <- unlist(strsplit(id_text,"\n"))
   data.env = getDataEnvironment()
