@@ -23,6 +23,27 @@ getUniprotIds <- function(taxonomy) {
   return (idlist)
 }
 
+#' @export
+batchUpdateUniprotSequences <- function(taxonomy) {
+  data_request <- httr::GET("https://rest.uniprot.org/uniprotkb/stream",query=list(format="tsv",fields="accession,sequence",query=paste("model_organism:",taxonomy," AND reviewed:true",sep="")),httr::progress())
+  httr::stop_for_status(data_request,'download Uniprot data from rest.uniprot.org')
+  seq_data <- httr::content(data_request,as='text')
+  target_file=tempfile()
+  fileConn<-file(target_file)
+  writeLines(seq_data, fileConn)
+  close(fileConn)
+  loadParsedJson('gator.UniProtData')
+  target_env = getDataEnvironment()
+  if (! exists('gator.UniProtData',target_env)) {
+    target_env[['gator.UniProtData']] = data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
+  }
+  new_data = setNames(read.delim(target_file),c('uniprot','sequence'))
+  new_data$uniprot = tolower(new_data$uniprot)
+  assign('gator.UniProtData',rbind(get('gator.UniProtData',target_env),new_data),envir=target_env)
+  writeParsedJson('gator.UniProtData')
+  NULL
+}
+
 # @importFrom data.table rbindlist
 # @importFrom httr POST
 # @importFrom httr content
