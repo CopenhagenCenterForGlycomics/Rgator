@@ -24,8 +24,12 @@ getUniprotIds <- function(taxonomy) {
 }
 
 #' @export
-batchUpdateUniprotSequences <- function(taxonomy) {
-  data_request <- httr::GET("https://rest.uniprot.org/uniprotkb/stream",query=list(format="tsv",fields="accession,sequence",query=paste("model_organism:",taxonomy," AND reviewed:true",sep="")),httr::progress())
+batchUpdateUniprotSequences <- function(taxonomy,reviewed=TRUE) {
+  if (reviewed) {
+    data_request <- httr::GET("https://rest.uniprot.org/uniprotkb/stream",query=list(format="tsv",fields="accession,sequence",query=paste("model_organism:",taxonomy," AND reviewed:true",sep="")),httr::progress())
+  } else {
+    data_request <- httr::GET("https://rest.uniprot.org/uniprotkb/stream",query=list(format="tsv",fields="accession,sequence",query=paste("model_organism:",taxonomy,sep="")),httr::progress())
+  }
   httr::stop_for_status(data_request,'download Uniprot data from rest.uniprot.org')
   seq_data <- httr::content(data_request,as='text')
   target_file=tempfile()
