@@ -48,11 +48,8 @@ batchUpdateUniprotSequences <- function(taxonomy,reviewed=TRUE) {
   NULL
 }
 
-# @importFrom data.table rbindlist
 # @importFrom httr POST
 # @importFrom httr content
-# @importFrom plyr ldply
-# @importFrom data.table rbindlist
 #' Retrieve UniProt sequences for a set of UniProt accessions
 #' @param   accessions   Uniprot accessions to retrieve sequence data for
 #' @return  Data frame with UniProt identifier and sequence
@@ -63,14 +60,14 @@ getUniprotSequences <- function(accessions,wait=0) {
     message("Isoform retrieval currently buggy in UniProt, removing isoforms")
   }
   loadParsedJson('gator.UniProtData')
-  if (exists("gator.UniProtData")) {
-    wanted_accs <- unique(wanted_accs[! wanted_accs %in% gator.UniProtData$uniprot ])
+  data.env = getDataEnvironment()
+  if (exists("gator.UniProtData",envir=data.env)) {
+    wanted_accs <- unique(wanted_accs[! wanted_accs %in% get('gator.UniProtData',envir=data.env)$uniprot ])
   } else {
-    data.env = getDataEnvironment()
     data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
   }
   if (length(wanted_accs) < 1) {
-    return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
+    return (unique(subset(get('gator.UniProtData',envir=data.env), uniprot %in% tolower(accessions) )))
   }
   if (length(wanted_accs) > 100) {
     accgroups <- split(wanted_accs, ceiling(seq_along(wanted_accs)/100))
@@ -98,24 +95,27 @@ getUniprotSequences <- function(accessions,wait=0) {
 
   if (fastas$status_code != 200) {
     message("Could not retrieve ids ",fastas$status_code)
-    return(unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
+    return(unique(subset(get('gator.UniProtData',envir=data.env), uniprot %in% tolower(accessions) )))
   }
   contents <- httr::content(fastas,"text")
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
-  seqs <- plyr::ldply(seqs,function(row) { c(  row[1] , gsub("\n","",row[2]) )  });
+  seqs <- do.call(rbind,sapply(seqs,function(row) { data.frame(  row[1] , gsub("\n","",row[2]) )  },simplify=F));
+  seqs = setNames(seqs,c('V1','V2'))
   seqs$V1 <- sub(">?[st][pr]\\|","",seqs$V1)
   seqs$V1 <- sub("\\|.*","",seqs$V1)
   if (length(names(seqs)) < 2) {
     message("Could not retrieve sequences")
     message(wanted_accs)
-    return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
+    return (unique(subset(get('gator.UniProtData',envir=data.env), uniprot %in% tolower(accessions) )))
   }
   names(seqs) <- c('uniprot','sequence')
   seqs$uniprot <- tolower(seqs$uniprot)
   data.env = getDataEnvironment()
-  data.env[[ 'gator.UniProtData']] <- as.data.frame(data.table::rbindlist( list(get('gator.UniProtData'), seqs)))
-  gator.UniProtData$uniprot = tolower(gator.UniProtData$uniprot)
+  data.env[[ 'gator.UniProtData']] <- as.data.frame(do.call( rbind, list(get('gator.UniProtData',envir=data.env), seqs)))
+  with(data.env, {
+    gator.UniProtData$uniprot = tolower(gator.UniProtData$uniprot)
+  })
   writeParsedJson('gator.UniProtData')
   Sys.sleep(wait)
-  return (unique(subset(gator.UniProtData, uniprot %in% tolower(accessions) )))
+  return (unique(subset(get('gator.UniProtData',envir=data.env), uniprot %in% tolower(accessions) )))
 }

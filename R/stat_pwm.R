@@ -35,10 +35,10 @@ PWMFunction <- ggplot2::ggproto("PWMFunction", ggplot2::Stat,
                           } else {
                             pwm[pwm==0]<- 0.001
                           }
-                          bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / unlist(backFreq[[x]]) })
+                          bval <- do.call(rbind, lapply(names(backFreq), function(x) { pwm[x,] / unlist(backFreq[[x]]) }))
                           row.names(bval)<-names(backFreq)
                           bval <- bval[names(backFreq),]
-                          window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
+                          window_size = floor( 0.5*dim(bval)[2] )
                           dimnames(bval)[[2]]<- c((-1*window_size):window_size)
                           reshape2::melt(bval,varnames=c("label","x"),value.name="y")
                         }

@@ -11,25 +11,9 @@ StagedInstall: no
 Imports:
     httr,
     plyr,
-    pryr,
-    proto,
-    data.table,
-    network,
-    intergraph,
-    scales,
-    RCurl,
-    rjson,
     grid,
-    gridExtra,
     VennDiagram,
     gridExtra,
-    httpuv,
-    ggplot2,
-    sna,
-    digest,
-    jsonlite,
-    IRanges
-Suggests:
-    colbycol
+    ggplot2
 License: TBD
-RoxygenNote: 5.0.1
+RoxygenNote: 7.2.3

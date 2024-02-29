@@ -99,14 +99,14 @@ calculatePWM <- function(dataframe,windowcol,codes=c('A','C', 'D','E','F','G','H
 # @importFrom ggplot2 theme_bw
 berrylogo<-function(pwm,backFreq,zero=.0001){
   pwm[pwm==0]<-zero
-  bval <- plyr::laply(names(backFreq),function(x) {  pwm[x,] / backFreq[[x]] })
+  bval <- do.call(rbind, lapply(names(backFreq), function(x) { pwm[x,] / unlist(backFreq[[x]]) }))
   row.names(bval)<-names(backFreq)
   hydrophobicity <- c(rep('#0000ff',6),rep('#00ff66',6),rep('#000000',8))
   names(hydrophobicity) <-  unlist(strsplit('RKDENQSGHTAPYVMCLFIW',''))
   chemistry <- c(rep('#00ff66',7),rep('#0000ff',3),rep('#ff0000',2),rep('#000000',8))
   names(chemistry) <- unlist(strsplit('GSTYCQNKRHDEAVLIPWFM',''))
   bval <- bval[names(hydrophobicity),]
-  window_size = floor( 0.5*length(dimnames(bval)[[2]]) )
+  window_size = floor( 0.5*dim(bval)[2] )
   dimnames(bval)[[2]]<- c((-1*window_size):window_size)
   p<-ggplot2::ggplot(reshape2::melt(bval,varnames=c("aa","pos")),ggplot2::aes(x=pos,y=value,label=aa))+
     ggplot2::geom_line(ggplot2::aes(y=1), colour = "grey",size=2)+
