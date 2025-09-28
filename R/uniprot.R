@@ -102,6 +102,11 @@ getUniprotSequences <- function(accessions,wait=0) {
   }
   contents <- httr::content(fastas,"text")
   seqs <- strsplit(sub("\n","\t", unlist(strsplit(contents,"\n>"))),"\t")
+  if (length(seqs) < 1) {
+    message("Could not retrieve sequences")
+    message(wanted_accs)
+    return (unique(subset(get('gator.UniProtData',envir=data.env), uniprot %in% tolower(accessions) )))
+  }
   seqs <- do.call(rbind,sapply(seqs,function(row) { data.frame(  row[1] , gsub("\n","",row[2]) )  },simplify=F));
   seqs = setNames(seqs,c('V1','V2'))
   seqs$V1 <- sub(">?[st][pr]\\|","",seqs$V1)
