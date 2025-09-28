@@ -88,9 +88,9 @@ getUniprotSequences <- function(accessions,wait=0) {
 
   message("Retrieving ",length(wanted_accs)," UniProt IDs")
 
-  accession <- toupper(paste(unlist(wanted_accs),collapse=","))
+  accession <- paste(paste0('accession:',toupper(unlist(wanted_accs))),collapse=" OR ")
 
-  fastas <- httr::GET("https://www.ebi.ac.uk/proteins/api/proteins",query=list(accession=accession), httr::add_headers(Accept = "text/x-fasta"))
+  fastas <- httr::GET("https://rest.uniprot.org/uniprotkb/search",query=list(query=accession), httr::add_headers(Accept = "text/plain;format=fasta"), httr::verbose())
 
 
   if (fastas$status_code != 200) {
