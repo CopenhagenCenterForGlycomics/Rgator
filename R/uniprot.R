@@ -90,7 +90,7 @@ getUniprotSequences <- function(accessions,wait=0) {
 
   accession <- paste(paste0('accession:',toupper(unlist(wanted_accs))),collapse=" OR ")
 
-  fastas <- httr::GET("https://rest.uniprot.org/uniprotkb/search",query=list(query=accession), httr::add_headers(Accept = "text/plain;format=fasta"), httr::verbose())
+  fastas <- httr::GET("https://rest.uniprot.org/uniprotkb/search",query=list(query=accession), httr::add_headers(Accept = "text/plain;format=fasta"))
 
 
   if (fastas$status_code != 200) {
