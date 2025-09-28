@@ -62,11 +62,14 @@ getUniprotSequences <- function(accessions,wait=0) {
   loadParsedJson('gator.UniProtData')
   data.env = getDataEnvironment()
   if (exists("gator.UniProtData",envir=data.env)) {
+    message("We have ",length(get('gator.UniProtData',envir=data.env)$uniprot)," existing UniProts in cache")
     wanted_accs <- unique(wanted_accs[! wanted_accs %in% get('gator.UniProtData',envir=data.env)$uniprot ])
+    message("We need to retrieve",length(wanted_accs),"ids, e.g.,",head(wanted_accs))
   } else {
     data.env[[ 'gator.UniProtData']] <- data.frame( uniprot = character(0), sequence = character(0), stringsAsFactors=FALSE)
   }
   if (length(wanted_accs) < 1) {
+    message("Nothing to retrieve - just returning the sequences from cache frame")
     return (unique(subset(get('gator.UniProtData',envir=data.env), uniprot %in% tolower(accessions) )))
   }
   if (length(wanted_accs) > 100) {
@@ -74,7 +77,7 @@ getUniprotSequences <- function(accessions,wait=0) {
     accumulated_frame <- NULL
     pb <- txtProgressBar(min=0, max=length(accgroups),initial=0)
     for (i in seq_along(accgroups)) {
-      frame <- suppressMessages(getUniprotSequences(as.vector(unlist(accgroups[i])),wait=5))
+      frame <- getUniprotSequences(as.vector(unlist(accgroups[i])),wait=5)
       if (is.null(accumulated_frame)) {
         accumulated_frame <- frame
       } else {
